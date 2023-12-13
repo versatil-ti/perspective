@@ -58,14 +58,14 @@ public:
 #endif
     PSP_NON_COPYABLE(t_data_table);
 
-    t_data_table(const t_schema& s, t_uindex capacity = DEFAULT_EMPTY_CAPACITY);
+    t_data_table(t_schema s, t_uindex init_cap = DEFAULT_EMPTY_CAPACITY);
 
     // Only use in tests, it inits the table unlike other constructors
     t_data_table(
         const t_schema& s, const std::vector<std::vector<t_tscalar>>& v);
 
-    t_data_table(const std::string& name, const std::string& dirname,
-        const t_schema& s, t_uindex init_cap, t_backing_store backing_store);
+    t_data_table(std::string name, std::string dirname, t_schema s,
+        t_uindex init_cap, t_backing_store backing_store);
     ~t_data_table();
 
     /**
@@ -105,7 +105,7 @@ public:
     std::shared_ptr<const t_column> get_const_column_safe(t_uindex idx) const;
 
     // Only increment capacity
-    void reserve(t_uindex nelems);
+    void reserve(t_uindex capacity);
 
     // Increment capacity and size
     void extend(t_uindex nelems);
@@ -137,7 +137,7 @@ public:
     void reset();
 
     t_mask filter_cpp(
-        t_filter_op combiner, const std::vector<t_fterm>& fops) const;
+        t_filter_op combiner, const std::vector<t_fterm>& fterms_) const;
     t_data_table* clone_(const t_mask& mask) const;
     std::shared_ptr<t_data_table> clone(const t_mask& mask) const;
     std::shared_ptr<t_data_table> clone() const;
@@ -157,7 +157,7 @@ public:
      * @return t_data_table
      */
     std::shared_ptr<t_data_table> join(
-        std::shared_ptr<t_data_table> other_table) const;
+        const std::shared_ptr<t_data_table>& other_table) const;
 
     /**
      * @brief Create a new `t_data_table` from the specified schema. For each

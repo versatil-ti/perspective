@@ -35,7 +35,7 @@ class t_ctx2;
 
 class t_traversal {
 public:
-    t_traversal(std::shared_ptr<const t_stree> tree);
+    t_traversal(const std::shared_ptr<const t_stree>& tree);
 
     t_index expand_node(t_index exp_idx);
 
@@ -113,7 +113,7 @@ public:
     const t_stree* get_tree() const;
 
     void populate_root_children(const t_stnode_vec& rchildren);
-    void populate_root_children(std::shared_ptr<const t_stree> tree);
+    void populate_root_children(const std::shared_ptr<const t_stree>& tree);
 
 private:
     std::shared_ptr<const t_stree> m_tree;

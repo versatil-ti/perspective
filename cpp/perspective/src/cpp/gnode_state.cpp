@@ -20,11 +20,13 @@
 #include <perspective/sym_table.h>
 #include <perspective/parallel_for.h>
 
+#include <utility>
+
 namespace perspective {
 
-t_gstate::t_gstate(const t_schema& input_schema, const t_schema& output_schema)
-    : m_input_schema(input_schema)
-    , m_output_schema(output_schema)
+t_gstate::t_gstate(t_schema input_schema, t_schema output_schema)
+    : m_input_schema(std::move(input_schema))
+    , m_output_schema(std::move(output_schema))
     , m_init(false) {
     LOG_CONSTRUCTOR("t_gstate");
 }
@@ -47,8 +49,9 @@ t_gstate::lookup(t_tscalar pkey) const {
 
     t_mapping::const_iterator iter = m_mapping.find(pkey);
 
-    if (iter == m_mapping.end())
+    if (iter == m_mapping.end()) {
         return rval;
+    }
 
     rval.m_idx = iter->second;
     rval.m_exists = true;
@@ -72,7 +75,7 @@ t_gstate::erase(const t_tscalar& pkey) {
 
     t_uindex idx = iter->second;
 
-    for (auto c : columns) {
+    for (auto* c : columns) {
         c->clear(idx);
     }
 
@@ -125,7 +128,7 @@ t_gstate::fill_master_table(const t_data_table* flattened) {
         = flattened->get_const_column("psp_op").get();
 
     t_uindex ncols = m_table->num_columns();
-    auto master_table = m_table.get();
+    auto* master_table = m_table.get();
 
     parallel_for(
         int(ncols), [&master_table, &master_table_schema, &flattened](int idx) {
@@ -150,8 +153,7 @@ t_gstate::fill_master_table(const t_data_table* flattened) {
     for (t_uindex idx = 0, loop_end = flattened->num_rows(); idx < loop_end;
          ++idx) {
         t_tscalar pkey = flattened_pkey_col->get_scalar(idx);
-        const std::uint8_t* op_ptr
-            = flattened_op_col->get_nth<std::uint8_t>(idx);
+        const auto* op_ptr = flattened_op_col->get_nth<std::uint8_t>(idx);
         t_op op = static_cast<t_op>(*op_ptr);
 
         switch (op) {
@@ -173,8 +175,6 @@ t_gstate::fill_master_table(const t_data_table* flattened) {
 #ifdef PSP_TABLE_VERIFY
     master_table->verify();
 #endif
-
-    return;
 }
 
 void
@@ -196,8 +196,7 @@ t_gstate::update_master_table(const t_data_table* flattened) {
     for (t_uindex idx = 0, loop_end = flattened->num_rows(); idx < loop_end;
          ++idx) {
         t_tscalar pkey = flattened_pkey_col->get_scalar(idx);
-        const std::uint8_t* op_ptr
-            = flattened_op_col->get_nth<std::uint8_t>(idx);
+        const auto* op_ptr = flattened_op_col->get_nth<std::uint8_t>(idx);
         t_op op = static_cast<t_op>(*op_ptr);
 
         switch (op) {
@@ -256,11 +255,12 @@ t_gstate::update_master_column(t_column* master_column,
             continue;
         }
 
-        const std::uint8_t* op_ptr = op_column->get_nth<std::uint8_t>(idx);
+        const auto* op_ptr = op_column->get_nth<std::uint8_t>(idx);
         t_op op = static_cast<t_op>(*op_ptr);
 
-        if (op == OP_DELETE)
+        if (op == OP_DELETE) {
             continue;
+        }
 
         switch (flattened_column->get_dtype()) {
             case DTYPE_NONE: {
@@ -333,9 +333,8 @@ void
 t_gstate::pprint() const {
     std::vector<t_uindex> indices(m_mapping.size());
     t_uindex idx = 0;
-    for (t_mapping::const_iterator iter = m_mapping.begin();
-         iter != m_mapping.end(); ++iter) {
-        indices[idx] = iter->second;
+    for (const auto& iter : m_mapping) {
+        indices[idx] = iter.second;
         ++idx;
     }
     m_table->pprint(indices);
@@ -345,9 +344,8 @@ t_mask
 t_gstate::get_cpp_mask() const {
     t_uindex sz = m_table->size();
     t_mask msk(sz);
-    for (t_mapping::const_iterator iter = m_mapping.begin();
-         iter != m_mapping.end(); ++iter) {
-        msk.set(iter->second, true);
+    for (const auto& iter : m_mapping) {
+        msk.set(iter.second, true);
     }
     return msk;
 }
@@ -365,9 +363,8 @@ t_gstate::read_by_pkey(const t_data_table& table, const std::string& colname,
     t_mapping::const_iterator iter = m_mapping.find(pkey);
     if (iter != m_mapping.end()) {
         return col_->get_scalar(iter->second);
-    } else {
-        PSP_COMPLAIN_AND_ABORT("Called without pkey");
     }
+    PSP_COMPLAIN_AND_ABORT("Called without pkey");
 }
 
 void
@@ -419,8 +416,7 @@ t_gstate::read_column(const t_data_table& table, const std::string& colname,
 
 void
 t_gstate::read_column(const t_data_table& table, const std::string& colname,
-    t_uindex start_idx, t_uindex end_idx,
-    std::vector<t_tscalar>& out_data) const {
+    t_uindex start_idx, t_uindex end_idx, std::vector<t_tscalar>& out_data) {
     t_index num_rows = end_idx - start_idx;
 
     // Don't read invalid row indices.
@@ -445,7 +441,7 @@ t_gstate::read_column(const t_data_table& table, const std::string& colname,
 void
 t_gstate::read_column(const t_data_table& table, const std::string& colname,
     const std::vector<t_uindex>& row_indices,
-    std::vector<t_tscalar>& out_data) const {
+    std::vector<t_tscalar>& out_data) {
     std::shared_ptr<const t_column> col = table.get_const_column(colname);
     const t_column* col_ = col.get();
 
@@ -470,7 +466,7 @@ t_gstate::get(const t_data_table& table, const std::string& colname,
         return col->get_scalar(iter->second);
     }
 
-    return t_tscalar();
+    return {};
 }
 
 t_tscalar
@@ -499,8 +495,9 @@ t_gstate::is_unique(const t_data_table& table, const std::string& colname,
         t_mapping::const_iterator iter = m_mapping.find(pkey);
         if (iter != m_mapping.end()) {
             auto tmp = col_->get_scalar(iter->second);
-            if (!value.is_none() && value != tmp)
+            if (!value.is_none() && value != tmp) {
                 return false;
+            }
             value = tmp;
         }
     }
@@ -511,7 +508,7 @@ t_gstate::is_unique(const t_data_table& table, const std::string& colname,
 bool
 t_gstate::apply(const t_data_table& table, const std::string& colname,
     const std::vector<t_tscalar>& pkeys, t_tscalar& value,
-    std::function<bool(const t_tscalar&, t_tscalar&)> fn) const {
+    const std::function<bool(const t_tscalar&, t_tscalar&)>& fn) const {
     std::shared_ptr<const t_column> col = table.get_const_column(colname);
     const t_column* col_ = col.get();
 
@@ -544,8 +541,9 @@ t_gstate::get_pkey_map() const {
 
 t_dtype
 t_gstate::get_pkey_dtype() const {
-    if (m_mapping.empty())
+    if (m_mapping.empty()) {
         return DTYPE_STR;
+    }
     auto iter = m_mapping.begin();
     return iter->first.get_dtype();
 }
@@ -557,11 +555,12 @@ t_gstate::get_pkeyed_table() const {
 
 std::shared_ptr<t_data_table>
 t_gstate::get_pkeyed_table(
-    const t_schema& schema, const std::shared_ptr<t_data_table> table) const {
+    const t_schema& schema, const std::shared_ptr<t_data_table>& table) const {
     // If there are no removes, just return the gstate table. Removes would
     // cause m_mapping to be smaller than m_table.
-    if (m_mapping.size() == table->size())
+    if (m_mapping.size() == table->size()) {
         return table;
+    }
 
     // Otherwise mask out the removed rows and return the table.
     auto mask = get_cpp_mask();
@@ -615,8 +614,9 @@ t_gstate::get_row_data_pkeys(const std::vector<t_tscalar>& pkeys) const {
 
     for (const auto& pkey : pkeys) {
         t_mapping::const_iterator iter = m_mapping.find(pkey);
-        if (iter == m_mapping.end())
+        if (iter == m_mapping.end()) {
             continue;
+        }
 
         for (t_uindex cidx = 0; cidx < ncols; ++cidx) {
             auto v = columns[cidx]->get_scalar(iter->second);
@@ -637,8 +637,9 @@ t_gstate::has_pkey(t_tscalar pkey) const {
 
 std::vector<t_tscalar>
 t_gstate::has_pkeys(const std::vector<t_tscalar>& pkeys) const {
-    if (pkeys.empty())
-        return std::vector<t_tscalar>();
+    if (pkeys.empty()) {
+        return {};
+    }
 
     std::vector<t_tscalar> rval(pkeys.size());
     t_uindex idx = 0;
@@ -711,8 +712,9 @@ t_gstate::get_pkeys_idx(const std::vector<t_tscalar>& pkeys) const {
     for (const auto& p : pkeys) {
         auto lk = lookup(p);
         std::cout << "pkey " << p << " exists " << lk.m_exists << std::endl;
-        if (lk.m_exists)
+        if (lk.m_exists) {
             rv.push_back(lk.m_idx);
+        }
     }
     return rv;
 }

@@ -72,7 +72,7 @@ protected:
     std::shared_ptr<const t_stree> ctree() const;
 
     t_uindex is_rtree_idx(t_uindex idx) const;
-    t_uindex is_ctree_idx(t_uindex idx) const;
+    t_uindex is_ctree_idx(t_uindex idx);
 
     t_index translate_column_index(t_index idx) const;
 

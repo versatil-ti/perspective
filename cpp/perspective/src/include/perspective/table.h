@@ -50,7 +50,7 @@ public:
     Table(std::shared_ptr<t_pool> pool,
         const std::vector<std::string>& column_names,
         const std::vector<t_dtype>& data_types, std::uint32_t limit,
-        const std::string& index);
+        std::string index);
 
     /**
      * @brief Register the given `t_data_table` with the underlying pool and
@@ -114,7 +114,7 @@ public:
      * @param in_schema
      * @return std::shared_ptr<t_gnode>
      */
-    std::shared_ptr<t_gnode> make_gnode(const t_schema& in_schema);
+    static std::shared_ptr<t_gnode> make_gnode(const t_schema& in_schema);
 
     /**
      * @brief Set the internal `m_gnode` reference and the corresponding flag.
@@ -129,7 +129,7 @@ public:
      *
      * @param id
      */
-    void unregister_gnode(t_uindex id);
+    void unregister_gnode(t_uindex id) const;
 
     /**
      * @brief Reset the gnode with the given `id`, thus deregistering any
@@ -137,7 +137,7 @@ public:
      *
      * @param id
      */
-    void reset_gnode(t_uindex id);
+    void reset_gnode(t_uindex id) const;
 
     /**
      * @brief Create a `t_port` on `m_gnode`, which allows updates and removes
@@ -147,14 +147,14 @@ public:
      * @return t_uindex the ID of the port, which can be passed into `update`
      * and `delete` methods in Javascript or Python.
      */
-    t_uindex make_port();
+    t_uindex make_port() const;
 
     /**
      * @brief Given a port ID, remove the input port associated with the ID.
      *
      * @param port_id
      */
-    void remove_port(t_uindex port_id);
+    void remove_port(t_uindex port_id) const;
 
     /**
      * @brief The offset determines where we begin to write data into the Table.
@@ -194,7 +194,7 @@ private:
      * @param data_table
      * @param op
      */
-    void process_op_column(t_data_table& data_table, const t_op op);
+    static void process_op_column(t_data_table& data_table, const t_op op);
 
     bool m_init;
     t_uindex m_id;

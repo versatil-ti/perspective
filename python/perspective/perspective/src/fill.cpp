@@ -18,131 +18,126 @@
 #include <perspective/python/fill.h>
 #include <perspective/python/utils.h>
 
-namespace perspective {
-namespace binding {
+namespace perspective::binding {
 
-    /******************************************************************************
-     *
-     * Fill columns with data
-     */
+/******************************************************************************
+ *
+ * Fill columns with data
+ */
 
-    void
-    _fill_col_time(t_data_accessor accessor, std::shared_ptr<t_column> col,
-        std::string name, std::int32_t cidx, t_dtype type, bool is_update,
-        bool is_limit) {
-        t_uindex nrows = col->size();
+void
+_fill_col_time(const t_data_accessor& accessor,
+    const std::shared_ptr<t_column>& col, const std::string& name,
+    std::int32_t cidx, t_dtype type, bool is_update, bool is_limit) {
+    t_uindex nrows = col->size();
 
-        for (auto i = 0; i < nrows; ++i) {
-            if (!accessor.attr("_has_column")(i, name).cast<bool>()
-                && !is_limit) {
-                continue;
-            }
-
-            t_val item = accessor.attr("marshal")(cidx, i, type);
-
-            if (item.is_none()) {
-                if (is_update) {
-                    col->unset(i);
-                } else {
-                    col->clear(i);
-                }
-                continue;
-            }
-
-            col->set_nth(i, item.cast<std::int64_t>());
+    for (auto i = 0; i < nrows; ++i) {
+        if (!accessor.attr("_has_column")(i, name).cast<bool>() && !is_limit) {
+            continue;
         }
-    }
 
-    void
-    _fill_col_date(t_data_accessor accessor, std::shared_ptr<t_column> col,
-        std::string name, std::int32_t cidx, t_dtype type, bool is_update,
-        bool is_limit) {
-        t_uindex nrows = col->size();
+        t_val item = accessor.attr("marshal")(cidx, i, type);
 
-        for (auto i = 0; i < nrows; ++i) {
-            if (!accessor.attr("_has_column")(i, name).cast<bool>()
-                && !is_limit) {
-                continue;
+        if (item.is_none()) {
+            if (is_update) {
+                col->unset(i);
+            } else {
+                col->clear(i);
             }
-
-            t_val item = accessor.attr("marshal")(cidx, i, type);
-
-            if (item.is_none()) {
-                if (is_update) {
-                    col->unset(i);
-                } else {
-                    col->clear(i);
-                }
-                continue;
-            }
-
-            auto date_components
-                = item.cast<std::map<std::string, std::int32_t>>();
-            t_date dt = t_date(date_components["year"],
-                date_components["month"], date_components["day"]);
-            col->set_nth(i, dt);
+            continue;
         }
+
+        col->set_nth(i, item.cast<std::int64_t>());
     }
+}
 
-    void
-    _fill_col_bool(t_data_accessor accessor, std::shared_ptr<t_column> col,
-        std::string name, std::int32_t cidx, t_dtype type, bool is_update,
-        bool is_limit) {
-        t_uindex nrows = col->size();
+void
+_fill_col_date(const t_data_accessor& accessor,
+    const std::shared_ptr<t_column>& col, const std::string& name,
+    std::int32_t cidx, t_dtype type, bool is_update, bool is_limit) {
+    t_uindex nrows = col->size();
 
-        for (auto i = 0; i < nrows; ++i) {
-            if (!accessor.attr("_has_column")(i, name).cast<bool>()
-                && !is_limit) {
-                continue;
-            }
-
-            t_val item = accessor.attr("marshal")(cidx, i, type);
-
-            if (item.is_none()) {
-                if (is_update) {
-                    col->unset(i);
-                } else {
-                    col->clear(i);
-                }
-                continue;
-            }
-
-            auto elem = item.cast<bool>();
-            col->set_nth(i, elem);
+    for (auto i = 0; i < nrows; ++i) {
+        if (!accessor.attr("_has_column")(i, name).cast<bool>() && !is_limit) {
+            continue;
         }
-    }
 
-    void
-    _fill_col_string(t_data_accessor accessor, std::shared_ptr<t_column> col,
-        std::string name, std::int32_t cidx, t_dtype type, bool is_update,
-        bool is_limit) {
+        t_val item = accessor.attr("marshal")(cidx, i, type);
 
-        t_uindex nrows = col->size();
-
-        for (auto i = 0; i < nrows; ++i) {
-            if (!accessor.attr("_has_column")(i, name).cast<bool>()
-                && !is_limit) {
-                continue;
+        if (item.is_none()) {
+            if (is_update) {
+                col->unset(i);
+            } else {
+                col->clear(i);
             }
-
-            t_val item = accessor.attr("marshal")(cidx, i, type);
-
-            if (item.is_none()) {
-                if (is_update) {
-                    col->unset(i);
-                } else {
-                    col->clear(i);
-                }
-                continue;
-            }
-
-            col->set_nth(i, item.cast<std::string>());
+            continue;
         }
+
+        auto date_components = item.cast<std::map<std::string, std::int32_t>>();
+        t_date dt = t_date(date_components["year"], date_components["month"],
+            date_components["day"]);
+        col->set_nth(i, dt);
     }
+}
+
+void
+_fill_col_bool(const t_data_accessor& accessor,
+    const std::shared_ptr<t_column>& col, const std::string& name,
+    std::int32_t cidx, t_dtype type, bool is_update, bool is_limit) {
+    t_uindex nrows = col->size();
+
+    for (auto i = 0; i < nrows; ++i) {
+        if (!accessor.attr("_has_column")(i, name).cast<bool>() && !is_limit) {
+            continue;
+        }
+
+        t_val item = accessor.attr("marshal")(cidx, i, type);
+
+        if (item.is_none()) {
+            if (is_update) {
+                col->unset(i);
+            } else {
+                col->clear(i);
+            }
+            continue;
+        }
+
+        auto elem = item.cast<bool>();
+        col->set_nth(i, elem);
+    }
+}
+
+void
+_fill_col_string(const t_data_accessor& accessor,
+    const std::shared_ptr<t_column>& col, const std::string& name,
+    std::int32_t cidx, t_dtype type, bool is_update, bool is_limit) {
+
+    t_uindex nrows = col->size();
+
+    for (auto i = 0; i < nrows; ++i) {
+        if (!accessor.attr("_has_column")(i, name).cast<bool>() && !is_limit) {
+            continue;
+        }
+
+        t_val item = accessor.attr("marshal")(cidx, i, type);
+
+        if (item.is_none()) {
+            if (is_update) {
+                col->unset(i);
+            } else {
+                col->clear(i);
+            }
+            continue;
+        }
+
+        col->set_nth(i, item.cast<std::string>());
+    }
+}
 
     template <>
     void
-    set_column_nth(std::shared_ptr<t_column> col, t_uindex idx, t_val value) {
+    set_column_nth(
+        const std::shared_ptr<t_column>& col, t_uindex idx, t_val value) {
         if (value.is_none()) {
             col->unset(idx);
             return;
@@ -209,9 +204,9 @@ namespace binding {
     }
 
     void
-    _fill_col_numeric(t_data_accessor accessor, t_data_table& tbl,
-        std::shared_ptr<t_column> col, std::string name, std::int32_t cidx,
-        t_dtype type, bool is_update, bool is_limit) {
+    _fill_col_numeric(const t_data_accessor& accessor, t_data_table& tbl,
+        std::shared_ptr<t_column> col, const std::string& name,
+        std::int32_t cidx, t_dtype type, bool is_update, bool is_limit) {
         t_uindex nrows = col->size();
 
         for (auto i = 0; i < nrows; ++i) {
@@ -312,9 +307,9 @@ namespace binding {
                         _fill_col_string(accessor, col, name, cidx, DTYPE_STR,
                             is_update, is_limit);
                         return;
-                    } else {
-                        col->set_nth(i, static_cast<std::int64_t>(fval));
                     }
+                    col->set_nth(i, static_cast<std::int64_t>(fval));
+
                 } break;
                 case DTYPE_FLOAT32: {
                     col->set_nth(i, item.cast<float>());
@@ -360,9 +355,9 @@ namespace binding {
     }
 
     void
-    _fill_data_helper(t_data_accessor accessor, t_data_table& tbl,
-        std::shared_ptr<t_column> col, std::string name, std::int32_t cidx,
-        t_dtype type, bool is_update, bool is_limit) {
+    _fill_data_helper(const t_data_accessor& accessor, t_data_table& tbl,
+        const std::shared_ptr<t_column>& col, const std::string& name,
+        std::int32_t cidx, t_dtype type, bool is_update, bool is_limit) {
         switch (type) {
             case DTYPE_BOOL: {
                 _fill_col_bool(
@@ -395,7 +390,7 @@ namespace binding {
      */
 
     void
-    _fill_data(t_data_table& tbl, t_data_accessor accessor,
+    _fill_data(t_data_table& tbl, const t_data_accessor& accessor,
         const t_schema& input_schema, const std::string& index,
         std::uint32_t offset, std::uint32_t limit, bool is_update) {
         bool implicit_index = false;
@@ -423,11 +418,11 @@ namespace binding {
         }
         // Fill index column - recreated every time a `t_data_table` is created.
         if (!implicit_index) {
-            if (index == "") {
+            if (index.empty()) {
                 // Use row number as index if not explicitly provided or
                 // provided with `__INDEX__`
-                auto key_col = tbl.add_column("psp_pkey", DTYPE_INT32, true);
-                auto okey_col = tbl.add_column("psp_okey", DTYPE_INT32, true);
+                auto* key_col = tbl.add_column("psp_pkey", DTYPE_INT32, true);
+                auto* okey_col = tbl.add_column("psp_okey", DTYPE_INT32, true);
 
                 for (std::uint32_t ridx = 0; ridx < tbl.size(); ++ridx) {
                     key_col->set_nth<std::int32_t>(
@@ -442,7 +437,6 @@ namespace binding {
         }
     }
 
-} // namespace binding
-} // namespace perspective
+    } // namespace perspective::binding
 
 #endif

@@ -17,26 +17,27 @@
 #include <perspective/python/base.h>
 #include <perspective/python/utils.h>
 
-namespace perspective {
-namespace binding {
+#include <utility>
 
-    /******************************************************************************
-     *
-     * Data serialization
-     */
-    template <typename CTX_T>
-    std::shared_ptr<t_data_slice<CTX_T>>
-    get_data_slice(std::shared_ptr<View<CTX_T>> view, std::uint32_t start_row,
-        std::uint32_t end_row, std::uint32_t start_col, std::uint32_t end_col) {
-        PSP_GIL_UNLOCK();
-        PSP_READ_LOCK(view->get_lock());
-        auto data_slice
-            = view->get_data(start_row, end_row, start_col, end_col);
-        return data_slice;
+namespace perspective::binding {
+
+/******************************************************************************
+ *
+ * Data serialization
+ */
+template <typename CTX_T>
+std::shared_ptr<t_data_slice<CTX_T>>
+get_data_slice(const std::shared_ptr<View<CTX_T>>& view,
+    std::uint32_t start_row, std::uint32_t end_row, std::uint32_t start_col,
+    std::uint32_t end_col) {
+    PSP_GIL_UNLOCK();
+    PSP_READ_LOCK(view->get_lock());
+    auto data_slice = view->get_data(start_row, end_row, start_col, end_col);
+    return data_slice;
     }
 
     std::shared_ptr<t_data_slice<t_ctxunit>>
-    get_data_slice_unit(std::shared_ptr<View<t_ctxunit>> view,
+    get_data_slice_unit(const std::shared_ptr<View<t_ctxunit>>& view,
         std::uint32_t start_row, std::uint32_t end_row, std::uint32_t start_col,
         std::uint32_t end_col) {
         return get_data_slice<t_ctxunit>(
@@ -44,7 +45,7 @@ namespace binding {
     }
 
     std::shared_ptr<t_data_slice<t_ctx0>>
-    get_data_slice_ctx0(std::shared_ptr<View<t_ctx0>> view,
+    get_data_slice_ctx0(const std::shared_ptr<View<t_ctx0>>& view,
         std::uint32_t start_row, std::uint32_t end_row, std::uint32_t start_col,
         std::uint32_t end_col) {
         return get_data_slice<t_ctx0>(
@@ -52,7 +53,7 @@ namespace binding {
     }
 
     std::shared_ptr<t_data_slice<t_ctx1>>
-    get_data_slice_ctx1(std::shared_ptr<View<t_ctx1>> view,
+    get_data_slice_ctx1(const std::shared_ptr<View<t_ctx1>>& view,
         std::uint32_t start_row, std::uint32_t end_row, std::uint32_t start_col,
         std::uint32_t end_col) {
         return get_data_slice<t_ctx1>(
@@ -60,7 +61,7 @@ namespace binding {
     }
 
     std::shared_ptr<t_data_slice<t_ctx2>>
-    get_data_slice_ctx2(std::shared_ptr<View<t_ctx2>> view,
+    get_data_slice_ctx2(const std::shared_ptr<View<t_ctx2>>& view,
         std::uint32_t start_row, std::uint32_t end_row, std::uint32_t start_col,
         std::uint32_t end_col) {
         return get_data_slice<t_ctx2>(
@@ -79,25 +80,26 @@ namespace binding {
     get_from_data_slice_unit(
         std::shared_ptr<t_data_slice<t_ctxunit>> data_slice, t_uindex ridx,
         t_uindex cidx) {
-        return get_from_data_slice<t_ctxunit>(data_slice, ridx, cidx);
+        return get_from_data_slice<t_ctxunit>(
+            std::move(data_slice), ridx, cidx);
     }
 
     t_val
     get_from_data_slice_ctx0(std::shared_ptr<t_data_slice<t_ctx0>> data_slice,
         t_uindex ridx, t_uindex cidx) {
-        return get_from_data_slice<t_ctx0>(data_slice, ridx, cidx);
+        return get_from_data_slice<t_ctx0>(std::move(data_slice), ridx, cidx);
     }
 
     t_val
     get_from_data_slice_ctx1(std::shared_ptr<t_data_slice<t_ctx1>> data_slice,
         t_uindex ridx, t_uindex cidx) {
-        return get_from_data_slice<t_ctx1>(data_slice, ridx, cidx);
+        return get_from_data_slice<t_ctx1>(std::move(data_slice), ridx, cidx);
     }
 
     t_val
     get_from_data_slice_ctx2(std::shared_ptr<t_data_slice<t_ctx2>> data_slice,
         t_uindex ridx, t_uindex cidx) {
-        return get_from_data_slice<t_ctx2>(data_slice, ridx, cidx);
+        return get_from_data_slice<t_ctx2>(std::move(data_slice), ridx, cidx);
     }
 
     template <typename CTX_T>
@@ -118,21 +120,24 @@ namespace binding {
     get_pkeys_from_data_slice_unit(
         std::shared_ptr<t_data_slice<t_ctxunit>> data_slice, t_uindex ridx,
         t_uindex cidx) {
-        return get_pkeys_from_data_slice<t_ctxunit>(data_slice, ridx, cidx);
+        return get_pkeys_from_data_slice<t_ctxunit>(
+            std::move(data_slice), ridx, cidx);
     }
 
     std::vector<t_val>
     get_pkeys_from_data_slice_ctx0(
         std::shared_ptr<t_data_slice<t_ctx0>> data_slice, t_uindex ridx,
         t_uindex cidx) {
-        return get_pkeys_from_data_slice<t_ctx0>(data_slice, ridx, cidx);
+        return get_pkeys_from_data_slice<t_ctx0>(
+            std::move(data_slice), ridx, cidx);
     }
 
     std::vector<t_val>
     get_pkeys_from_data_slice_ctx1(
         std::shared_ptr<t_data_slice<t_ctx1>> data_slice, t_uindex ridx,
         t_uindex cidx) {
-        return get_pkeys_from_data_slice<t_ctx1>(data_slice, ridx, cidx);
+        return get_pkeys_from_data_slice<t_ctx1>(
+            std::move(data_slice), ridx, cidx);
         ;
     }
 
@@ -140,10 +145,10 @@ namespace binding {
     get_pkeys_from_data_slice_ctx2(
         std::shared_ptr<t_data_slice<t_ctx2>> data_slice, t_uindex ridx,
         t_uindex cidx) {
-        return get_pkeys_from_data_slice<t_ctx2>(data_slice, ridx, cidx);
+        return get_pkeys_from_data_slice<t_ctx2>(
+            std::move(data_slice), ridx, cidx);
     }
 
-} // end namespace binding
-} // end namespace perspective
+    } // namespace perspective::binding
 
 #endif

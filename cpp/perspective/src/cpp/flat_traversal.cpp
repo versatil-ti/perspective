@@ -38,8 +38,8 @@ t_ftrav::get_all_pkeys(
     std::vector<t_tscalar> rval;
     rval.reserve(cells.size());
     std::vector<t_mselem>* index = m_index.get();
-    for (auto iter = cells.begin(); iter != cells.end(); ++iter) {
-        rval.push_back((*index)[iter->first].m_pkey);
+    for (const auto& cell : cells) {
+        rval.push_back((*index)[cell.first].m_pkey);
     }
     return rval;
 }
@@ -51,8 +51,8 @@ t_ftrav::get_pkeys(
 
     std::set<t_index> all_rows;
 
-    for (t_index idx = 0, loop_end = cells.size(); idx < loop_end; ++idx) {
-        all_rows.insert(cells[idx].first);
+    for (const auto& cell : cells) {
+        all_rows.insert(cell.first);
     }
 
     std::vector<t_tscalar> rval(all_rows.size());
@@ -80,8 +80,7 @@ std::vector<t_tscalar>
 t_ftrav::get_pkeys(const std::vector<t_uindex>& rows) const {
     std::vector<t_tscalar> rval;
     rval.reserve(rows.size());
-    for (auto it = rows.begin(); it != rows.end(); ++it) {
-        t_uindex ridx = *it;
+    for (unsigned int ridx : rows) {
         rval.push_back((*m_index)[ridx].m_pkey);
     }
     return rval;
@@ -109,7 +108,7 @@ t_ftrav::fill_sort_elem(const t_gstate& gstate,
         // maintain backwards compatibility
         std::string colname;
 
-        if (sort.m_colname != "") {
+        if (!sort.m_colname.empty()) {
             colname = config.get_sort_by(sort.m_colname);
         } else {
             colname = config.col_at(sort.m_agg_index);
@@ -133,7 +132,7 @@ t_ftrav::fill_sort_elem(const t_gstate& gstate, const t_config& config,
     for (const t_sortspec& sort : m_sortby) {
         std::string colname;
 
-        if (sort.m_colname != "") {
+        if (!sort.m_colname.empty()) {
             colname = config.get_sort_by(sort.m_colname);
         } else {
             colname = config.col_at(sort.m_agg_index);
@@ -150,8 +149,9 @@ void
 t_ftrav::sort_by(const t_gstate& gstate,
     const t_data_table& expression_master_table, const t_config& config,
     const std::vector<t_sortspec>& sortby) {
-    if (sortby.empty())
+    if (sortby.empty()) {
         return;
+    }
     t_multisorter sorter(get_sort_orders(sortby));
     t_index size = m_index->size();
     auto sort_elems
@@ -220,8 +220,9 @@ t_ftrav::get_row_indices(const tsl::hopscotch_set<t_tscalar>& pkeys) const {
 
 void
 t_ftrav::reset() {
-    if (m_index.get())
+    if (m_index != nullptr) {
         m_index->clear();
+    }
 }
 
 void
@@ -243,10 +244,11 @@ t_ftrav::validate_cells(
     const std::vector<std::pair<t_uindex, t_uindex>>& cells) const {
     t_index trav_size = size();
 
-    for (t_index idx = 0, loop_end = cells.size(); idx < loop_end; ++idx) {
-        t_index ridx = cells[idx].first;
-        if (ridx >= trav_size)
+    for (const auto& cell : cells) {
+        t_index ridx = cell.first;
+        if (ridx >= trav_size) {
             return false;
+        }
     }
     return true;
 }
@@ -284,9 +286,7 @@ t_ftrav::step_end() {
     // psp_pkey is a string column.
     std::sort(new_rows.begin(), new_rows.end(), sorter);
 
-    for (auto it = new_rows.begin(); it != new_rows.end(); ++it) {
-        const t_mselem& new_elem = *it;
-
+    for (auto& new_elem : new_rows) {
         while (i < m_index->size()) {
             const t_mselem& old_elem = (*m_index)[i];
 
@@ -339,8 +339,9 @@ void
 t_ftrav::update_row(const t_gstate& gstate,
     const t_data_table& expression_master_table, const t_config& config,
     t_tscalar pkey) {
-    if (m_sortby.empty())
+    if (m_sortby.empty()) {
         return;
+    }
     auto pkiter = m_pkeyidx.find(pkey);
     if (pkiter == m_pkeyidx.end()) {
         add_row(gstate, expression_master_table, config, pkey);
@@ -355,8 +356,9 @@ t_ftrav::update_row(const t_gstate& gstate,
 void
 t_ftrav::delete_row(t_tscalar pkey) {
     auto pkiter = m_pkeyidx.find(pkey);
-    if (pkiter == m_pkeyidx.end())
+    if (pkiter == m_pkeyidx.end()) {
         return;
+    }
     (*m_index)[pkiter->second].m_deleted = true;
     m_new_elems.erase(pkey);
     ++m_step_deletes;
@@ -396,23 +398,23 @@ t_ftrav::lower_bound_row_idx(const t_gstate& gstate, const t_config& config,
 t_index
 t_ftrav::get_row_idx(t_tscalar pkey) const {
     auto pkiter = m_pkeyidx.find(pkey);
-    if (pkiter == m_pkeyidx.end())
+    if (pkiter == m_pkeyidx.end()) {
         return -1;
+    }
     return pkiter->second;
 }
 
 t_tscalar
 t_ftrav::get_from_gstate(const t_gstate& gstate,
     const t_data_table& expression_master_table, const std::string& colname,
-    t_tscalar pkey) const {
+    t_tscalar pkey) {
     const t_schema& expression_schema = expression_master_table.get_schema();
 
     if (expression_schema.has_column(colname)) {
         return gstate.get(expression_master_table, colname, pkey);
-    } else {
-        std::shared_ptr<t_data_table> master_table = gstate.get_table();
-        return gstate.get(*master_table, colname, pkey);
     }
+    std::shared_ptr<t_data_table> master_table = gstate.get_table();
+    return gstate.get(*master_table, colname, pkey);
 }
 
 } // end namespace perspective

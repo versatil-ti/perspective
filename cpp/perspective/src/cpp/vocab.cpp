@@ -14,30 +14,32 @@
 #include <perspective/vocab.h>
 #include <tsl/hopscotch_set.h>
 
+#include <memory>
+
 namespace perspective {
 
 t_vocab::t_vocab()
     : m_vlenidx(0) {
-    m_vlendata.reset(new t_lstore);
-    m_extents.reset(new t_lstore);
+    m_vlendata = std::make_shared<t_lstore>();
+    m_extents = std::make_shared<t_lstore>();
 }
 
 t_vocab::t_vocab(const t_column_recipe& r)
     : m_vlenidx(r.m_vlenidx) {
     if (is_vlen_dtype(r.m_dtype)) {
-        m_vlendata.reset(new t_lstore(r.m_vlendata));
-        m_extents.reset(new t_lstore(r.m_extents));
+        m_vlendata = std::make_shared<t_lstore>(r.m_vlendata);
+        m_extents = std::make_shared<t_lstore>(r.m_extents);
     } else {
-        m_vlendata.reset(new t_lstore);
-        m_extents.reset(new t_lstore);
+        m_vlendata = std::make_shared<t_lstore>();
+        m_extents = std::make_shared<t_lstore>();
     }
 }
 
 t_vocab::t_vocab(const t_lstore_recipe& vlendata_recipe,
     const t_lstore_recipe& extents_recipe)
     : m_vlenidx(0) {
-    m_vlendata.reset(new t_lstore(vlendata_recipe));
-    m_extents.reset(new t_lstore(extents_recipe));
+    m_vlendata = std::make_shared<t_lstore>(vlendata_recipe);
+    m_extents = std::make_shared<t_lstore>(extents_recipe);
 }
 
 void
@@ -60,8 +62,9 @@ bool
 t_vocab::string_exists(const char* c, t_uindex& interned) const {
     auto iter = m_map.find(c);
 
-    if (iter == m_map.end())
+    if (iter == m_map.end()) {
         return false;
+    }
 
     interned = iter->second;
     return true;
@@ -75,7 +78,9 @@ t_vocab::get_interned(const char* s) {
 
     t_sidxmap::iterator iter = m_map.find(s);
 
-    t_uindex idx, bidx, eidx;
+    t_uindex idx;
+    t_uindex bidx;
+    t_uindex eidx;
     t_uindex len = strlen(s) + 1;
 
     if (iter == m_map.end()) {

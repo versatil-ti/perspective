@@ -26,7 +26,7 @@ template <>
 void
 t_column::object_copied<PSP_OBJECT_TYPE>(t_uindex ptr) const {
     // get what was there and incref if can
-    if (ptr) {
+    if (ptr != 0u) {
         py::handle handle = reinterpret_cast<PSP_OBJECT_TYPE>(ptr);
         handle.inc_ref();
     }
@@ -36,7 +36,7 @@ template <>
 void
 t_column::object_cleared<PSP_OBJECT_TYPE>(t_uindex ptr) const {
     // get what was there and decref if can
-    if (ptr) {
+    if (ptr != 0u) {
         py::handle handle = reinterpret_cast<PSP_OBJECT_TYPE>(ptr);
         handle.dec_ref();
     }

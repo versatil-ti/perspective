@@ -22,7 +22,7 @@ t_rlookup::t_rlookup(t_uindex idx, bool exists)
     LOG_CONSTRUCTOR("t_rlookup");
 }
 
-t_rlookup::t_rlookup() {}
+t_rlookup::t_rlookup() = default;
 
 t_rlookup::~t_rlookup() {
     PSP_TRACE_SENTINEL();

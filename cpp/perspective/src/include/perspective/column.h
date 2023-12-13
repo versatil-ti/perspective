@@ -116,18 +116,18 @@ public:
 
     void set_status(t_uindex idx, t_status status);
 
-    void set_size(t_uindex idx);
+    void set_size(t_uindex size);
 
-    void reserve(t_uindex idx);
+    void reserve(t_uindex size);
 
     // object storage
     template <typename T>
     void object_copied(t_uindex ptr) const;
-    void notify_object_copied(t_uindex ptr) const;
+    void notify_object_copied(t_uindex idx) const;
 
     template <typename T>
     void object_cleared(t_uindex ptr) const;
-    void notify_object_cleared(t_uindex ptr) const;
+    void notify_object_cleared(t_uindex idx) const;
 
     const t_lstore& data_lstore() const;
 
@@ -157,7 +157,7 @@ public:
     void append(const t_column& other);
 
     void clear();
-    void clear_objects();
+    void clear_objects() const;
 
     template <typename VEC_T>
     void fill(VEC_T& vec, const t_uindex* bidx, const t_uindex* eidx) const;

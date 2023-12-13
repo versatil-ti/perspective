@@ -173,9 +173,7 @@ get_dtype_size(t_dtype dtype) {
 
 bool
 is_vlen_dtype(t_dtype dtype) {
-    if (dtype == DTYPE_STR || dtype == DTYPE_USER_VLEN)
-        return true;
-    return false;
+    return dtype == DTYPE_STR || dtype == DTYPE_USER_VLEN;
 }
 
 std::string
@@ -303,7 +301,8 @@ str_to_dtype(const std::string& typestring) {
     // returns most commonly used types in the JS/python public APIs.
     if (typestring == "integer") {
         return DTYPE_INT32;
-    } else if (typestring == "float") {
+    }
+    if (typestring == "float") {
         return DTYPE_FLOAT64;
     } else if (typestring == "boolean") {
         return DTYPE_BOOL;
@@ -377,7 +376,8 @@ t_filter_op
 str_to_filter_op(const std::string& str) {
     if (str == "<") {
         return t_filter_op::FILTER_OP_LT;
-    } else if (str == "<=") {
+    }
+    if (str == "<=") {
         return t_filter_op::FILTER_OP_LTEQ;
     } else if (str == ">") {
         return t_filter_op::FILTER_OP_GT;
@@ -417,7 +417,8 @@ t_sorttype
 str_to_sorttype(const std::string& str) {
     if (str == "none") {
         return SORTTYPE_NONE;
-    } else if (str == "asc" || str == "col asc") {
+    }
+    if (str == "asc" || str == "col asc") {
         return SORTTYPE_ASCENDING;
     } else if (str == "desc" || str == "col desc") {
         return SORTTYPE_DESCENDING;
@@ -438,7 +439,8 @@ str_to_aggtype(const std::string& str) {
     if (str == "distinct count" || str == "distinctcount" || str == "distinct"
         || str == "distinct_count") {
         return t_aggtype::AGGTYPE_DISTINCT_COUNT;
-    } else if (str == "sum") {
+    }
+    if (str == "sum") {
         return t_aggtype::AGGTYPE_SUM;
     } else if (str == "mul") {
         return t_aggtype::AGGTYPE_MUL;
@@ -629,7 +631,7 @@ root_pidx() {
 
 bool
 is_internal_colname(const std::string& c) {
-    return c.compare(std::string("psp_")) == 0;
+    return c == std::string("psp_");
 }
 
 template <typename T>

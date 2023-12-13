@@ -123,7 +123,7 @@ ParseYYYY_D_M(const char* s, arrow_vendored::date::year_month_day* out) {
 
 static inline std::string
 extract_string(const char* ch, int start_idx, int number_of_chars) {
-    std::string out = "";
+    std::string out;
     for (int i = start_idx; i < start_idx + number_of_chars; i++) {
         out += ch[i];
     }
@@ -134,8 +134,8 @@ static inline bool
 ParseAM_PM(const char* s, std::chrono::seconds& seconds, int length) {
     int hour = 0;
     int twelve_hours = 12;
-    std::string am_pm = "";
-    std::string hour_string = "";
+    std::string am_pm;
+    std::string hour_string;
 
     if (length == 21) {
         am_pm = extract_string(s, 19, 2);
@@ -164,31 +164,27 @@ ParseAM_PM(const char* s, std::chrono::seconds& seconds, int length) {
     return true;
 }
 
-namespace perspective {
-namespace apachearrow {
+namespace perspective::apachearrow {
 
-    class UnixTimestampParser : public arrow::TimestampParser {
-    public:
-        bool
-        operator()(const char* s, size_t length, arrow::TimeUnit::type out_unit,
-            int64_t* out,
-            bool* out_zone_offset_present = NULLPTR) const override {
-            size_t endptr;
-            std::string val(s, s + length);
-            int64_t value
-                = std::stoll(static_cast<std::string>(val), &endptr, 10);
-            if (endptr != length) {
-                return false;
-            } else {
-                (*out) = value;
-                return true;
-            }
+class UnixTimestampParser : public arrow::TimestampParser {
+public:
+    bool
+    operator()(const char* s, size_t length, arrow::TimeUnit::type out_unit,
+        int64_t* out, bool* out_zone_offset_present = NULLPTR) const override {
+        size_t endptr;
+        std::string val(s, s + length);
+        int64_t value = std::stoll(static_cast<std::string>(val), &endptr, 10);
+        if (endptr != length) {
+            return false;
         }
+        (*out) = value;
+        return true;
+    }
 
-        const char*
-        kind() const override {
-            return "unixtimestamp";
-        }
+    [[nodiscard]] const char*
+    kind() const override {
+        return "unixtimestamp";
+    }
     };
 
     static inline bool
@@ -264,7 +260,8 @@ namespace apachearrow {
                         arrow_vendored::date::sys_days(ymd) + seconds + millis,
                         unit);
                     return true;
-                } else if (length == 25) {
+                }
+                if (length == 25) {
                     // "2008-09-15[ T]15:53:00+05:00"
                     arrow_vendored::date::year_month_day ymd;
                     if (ARROW_PREDICT_FALSE(!ParseYYYY_MM_DD(s, &ymd))) {
@@ -291,7 +288,7 @@ namespace apachearrow {
             return true;
         }
 
-        const char*
+        [[nodiscard]] const char*
         kind() const override {
             return "custom_ISO8601";
         }
@@ -326,7 +323,8 @@ namespace apachearrow {
                         arrow_vendored::date::sys_days(ymd) + seconds + am_pm,
                         unit);
                     return true;
-                } else if (length == 21) {
+                }
+                if (length == 21) {
                     arrow_vendored::date::year_month_day ymd;
                     if (ARROW_PREDICT_FALSE(!ParseYYYY_D_M(s, &ymd))) {
                         return false;
@@ -353,7 +351,7 @@ namespace apachearrow {
             return true;
         }
 
-        const char*
+        [[nodiscard]] const char*
         kind() const override {
             return "USTimestampParser";
         }
@@ -385,7 +383,7 @@ namespace apachearrow {
 
     int64_t
     parseAsArrowTimestamp(const std::string& input) {
-        for (auto candidate : DATE_PARSERS) {
+        for (const auto& candidate : DATE_PARSERS) {
             int64_t datetime;
             if (candidate->operator()(input.c_str(), input.size(),
                     arrow::TimeUnit::MILLI, &datetime)) {
@@ -399,7 +397,8 @@ namespace apachearrow {
     csvToTable(std::string& csv, bool is_update,
         std::unordered_map<std::string, std::shared_ptr<arrow::DataType>>&
             schema) {
-        arrow::io::IOContext io_context = arrow::io::default_io_context();
+        const arrow::io::IOContext& io_context
+            = arrow::io::default_io_context();
         auto input = std::make_shared<arrow::io::BufferReader>(csv);
         auto read_options = arrow::csv::ReadOptions::Defaults();
         auto parse_options = arrow::csv::ParseOptions::Defaults();
@@ -431,5 +430,4 @@ namespace apachearrow {
         return *maybe_table;
     }
 
-} // namespace apachearrow
-} // namespace perspective
+    } // namespace perspective::apachearrow

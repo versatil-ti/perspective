@@ -160,7 +160,7 @@ std::is_pod<X>::value && std::is_standard_layout<X>::value , \
 #endif
 
 #define PSP_COMPLAIN_AND_ABORT(X)                                              \
-    ::perspective::psp_abort(X);                                                              \
+    ::perspective::psp_abort(X);                                               \
     abort();
 
 #define PSP_VERBOSE_ASSERT(...)                                                \

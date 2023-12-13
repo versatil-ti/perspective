@@ -12,6 +12,10 @@
 
 #include <perspective/computed_expression.h>
 
+#include <utility>
+
+#include <utility>
+
 namespace perspective {
 
 // Change ExprTk's default compilation options to only check for correctness
@@ -96,22 +100,22 @@ t_tscalar t_computed_expression_parser::FALSE_SCALAR = mktscalar(false);
  * t_computed_expression
  */
 
-t_computed_expression::t_computed_expression(
-    const std::string& expression_alias, const std::string& expression_string,
-    const std::string& parsed_expression_string,
+t_computed_expression::t_computed_expression(std::string expression_alias,
+    std::string expression_string, std::string parsed_expression_string,
     const std::vector<std::pair<std::string, std::string>>& column_ids,
     t_dtype dtype)
-    : m_expression_alias(expression_alias)
-    , m_expression_string(expression_string)
-    , m_parsed_expression_string(parsed_expression_string)
-    , m_column_ids(std::move(column_ids))
+    : m_expression_alias(std::move(expression_alias))
+    , m_expression_string(std::move(expression_string))
+    , m_parsed_expression_string(std::move(parsed_expression_string))
+    , m_column_ids(column_ids)
     , m_dtype(dtype) {}
 
 void
-t_computed_expression::compute(std::shared_ptr<t_data_table> source_table,
+t_computed_expression::compute(
+    const std::shared_ptr<t_data_table>& source_table,
     const t_gstate::t_mapping& pkey_map,
-    std::shared_ptr<t_data_table> destination_table, t_expression_vocab& vocab,
-    t_regex_mapping& regex_mapping) const {
+    const std::shared_ptr<t_data_table>& destination_table,
+    t_expression_vocab& vocab, t_regex_mapping& regex_mapping) const {
     // TODO: share symtables across pre/re/compute
     exprtk::symbol_table<t_tscalar> sym_table;
 
@@ -234,8 +238,9 @@ t_computed_expression_parser::precompute(const std::string& expression_alias,
     const std::string& parsed_expression_string,
     const std::vector<std::pair<std::string, std::string>>& column_ids,
     std::shared_ptr<t_data_table> source_table,
-    const t_gstate::t_mapping& pkey_map, std::shared_ptr<t_schema> schema,
-    t_expression_vocab& vocab, t_regex_mapping& regex_mapping) {
+    const t_gstate::t_mapping& pkey_map,
+    const std::shared_ptr<t_schema>& schema, t_expression_vocab& vocab,
+    t_regex_mapping& regex_mapping) {
     exprtk::symbol_table<t_tscalar> sym_table;
     sym_table.add_constants();
 
@@ -244,7 +249,7 @@ t_computed_expression_parser::precompute(const std::string& expression_alias,
     // Create a function store, with is_type_validator set to true as we are
     // just getting the output types.
     t_computed_function_store function_store(
-        vocab, regex_mapping, true, source_table, pkey_map, row_idx);
+        vocab, regex_mapping, true, std::move(source_table), pkey_map, row_idx);
     function_store.register_computed_functions(sym_table);
 
     std::vector<t_tscalar> values;
@@ -314,7 +319,7 @@ t_computed_expression_parser::get_dtype(const std::string& expression_alias,
     // Create a function store, with is_type_validator set to true as we are
     // just validating the output types.
     t_computed_function_store function_store(
-        vocab, regex_mapping, true, source_table, pkey_map, row_idx);
+        vocab, regex_mapping, true, std::move(source_table), pkey_map, row_idx);
     function_store.register_computed_functions(sym_table);
 
     auto num_input_columns = column_ids.size();
@@ -372,7 +377,7 @@ t_computed_expression_parser::get_dtype(const std::string& expression_alias,
                 parser_error, parsed_expression_string);
 
             // Take the error message and strip the ExprTk error code
-            std::string error_message(parser_error.diagnostic.c_str());
+            std::string error_message(parser_error.diagnostic);
 
             // strip the Exprtk error codes such as "ERR001 -"
             error.m_error_message
@@ -407,7 +412,7 @@ t_computed_expression_parser::get_dtype(const std::string& expression_alias,
     return dtype;
 }
 
-t_validated_expression_map::t_validated_expression_map() {}
+t_validated_expression_map::t_validated_expression_map() = default;
 
 void
 t_validated_expression_map::add_expression(
@@ -455,7 +460,7 @@ t_validated_expression_map::get_expression_errors() const {
 
 t_computed_function_store::t_computed_function_store(t_expression_vocab& vocab,
     t_regex_mapping& regex_mapping, bool is_type_validator,
-    std::shared_ptr<t_data_table> source_table,
+    const std::shared_ptr<t_data_table>& source_table,
     const t_gstate::t_mapping& pkey_map, t_uindex& row_idx)
     : m_day_of_week_fn(computed_function::day_of_week(vocab, is_type_validator))
     , m_month_of_year_fn(

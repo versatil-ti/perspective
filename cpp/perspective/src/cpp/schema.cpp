@@ -15,7 +15,7 @@
 
 namespace perspective {
 
-t_schema::t_schema() {}
+t_schema::t_schema() = default;
 
 t_schema::t_schema(
     const std::vector<std::string>& columns, const std::vector<t_dtype>& types)
@@ -155,7 +155,7 @@ t_schema::columns() const {
     return m_columns;
 }
 
-const std::vector<t_dtype>
+std::vector<t_dtype>
 t_schema::types() const {
     return m_types;
 }

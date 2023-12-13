@@ -54,7 +54,7 @@ t_data_slice<CTX_T>::t_data_slice(std::shared_ptr<CTX_T> ctx,
 }
 
 template <typename CTX_T>
-t_data_slice<CTX_T>::~t_data_slice() {}
+t_data_slice<CTX_T>::~t_data_slice() = default;
 
 // Public API
 template <typename CTX_T>

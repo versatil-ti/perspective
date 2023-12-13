@@ -29,8 +29,7 @@
 #include "arrow/status.h"
 #include "arrow/util/logging.h"
 
-namespace arrow {
-namespace compute {
+namespace arrow::compute {
 
 class FunctionRegistry::FunctionRegistryImpl {
  public:
@@ -81,9 +80,11 @@ class FunctionRegistry::FunctionRegistryImpl {
     return it->second;
   }
 
-  std::vector<std::string> GetFunctionNames() const {
+  [[nodiscard]] std::vector<std::string>
+  GetFunctionNames() const {
     std::vector<std::string> results;
-    for (auto it : name_to_function_) {
+    results.reserve(name_to_function_.size());
+    for (const auto& it : name_to_function_) {
       results.push_back(it.first);
     }
     std::sort(results.begin(), results.end());
@@ -99,7 +100,10 @@ class FunctionRegistry::FunctionRegistryImpl {
     return it->second;
   }
 
-  int num_functions() const { return static_cast<int>(name_to_function_.size()); }
+  [[nodiscard]] int
+  num_functions() const {
+    return static_cast<int>(name_to_function_.size());
+  }
 
  private:
   std::mutex lock_;
@@ -111,9 +115,11 @@ std::unique_ptr<FunctionRegistry> FunctionRegistry::Make() {
   return std::unique_ptr<FunctionRegistry>(new FunctionRegistry());
 }
 
-FunctionRegistry::FunctionRegistry() { impl_.reset(new FunctionRegistryImpl()); }
+FunctionRegistry::FunctionRegistry() {
+  impl_ = std::make_unique<FunctionRegistryImpl>();
+}
 
-FunctionRegistry::~FunctionRegistry() {}
+FunctionRegistry::~FunctionRegistry() = default;
 
 Status FunctionRegistry::AddFunction(std::shared_ptr<Function> function,
                                      bool allow_overwrite) {
@@ -196,5 +202,4 @@ FunctionRegistry* GetFunctionRegistry() {
   return g_registry.get();
 }
 
-}  // namespace compute
-}  // namespace arrow
+} // namespace arrow::compute

@@ -35,7 +35,7 @@ namespace perspective {
 
 struct PERSPECTIVE_EXPORT t_updctx {
     t_updctx();
-    t_updctx(t_uindex gnode_id, const std::string& ctx);
+    t_updctx(t_uindex gnode_id, std::string ctx);
 
     t_uindex m_gnode_id;
     std::string m_ctx;
@@ -92,7 +92,7 @@ public:
     void set_sleep(t_uindex ms);
     std::vector<t_stree*> get_trees();
 
-    bool get_data_remaining() const;
+    bool get_data_remaining();
     std::vector<t_updctx> get_contexts_last_updated();
     std::string repr() const;
 
@@ -101,7 +101,7 @@ public:
     t_uindex epoch() const;
     void inc_epoch();
     std::vector<t_uindex> get_gnodes_last_updated();
-    t_gnode* get_gnode(t_uindex gnode_id);
+    t_gnode* get_gnode(t_uindex idx);
 
 protected:
     // Unused methods

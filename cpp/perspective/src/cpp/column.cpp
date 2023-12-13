@@ -19,6 +19,10 @@ SUPPRESS_WARNINGS_VC(4505)
 #include <perspective/sym_table.h>
 #include <tsl/hopscotch_set.h>
 
+#include <memory>
+
+#include <utility>
+
 namespace perspective {
 // TODO : move to delegated constructors in C++11
 
@@ -50,19 +54,19 @@ t_column::t_column(const t_column_recipe& recipe)
 
 {
     LOG_CONSTRUCTOR("t_column");
-    m_data.reset(new t_lstore(recipe.m_data));
+    m_data = std::make_shared<t_lstore>(recipe.m_data);
     m_isvlen = is_vlen_dtype(recipe.m_dtype);
 
     if (m_isvlen) {
-        m_vocab.reset(new t_vocab(recipe));
+        m_vocab = std::make_shared<t_vocab>(recipe);
     } else {
-        m_vocab.reset(new t_vocab);
+        m_vocab = std::make_shared<t_vocab>();
     }
 
     if (m_status_enabled) {
-        m_status.reset(new t_lstore(recipe.m_status));
+        m_status = std::make_shared<t_lstore>(recipe.m_status);
     } else {
-        m_status.reset(new t_lstore);
+        m_status = std::make_shared<t_lstore>();
     }
 }
 
@@ -71,10 +75,11 @@ t_column::column_copy_helper(const t_column& other) {
     m_dtype = other.m_dtype;
     m_init = false;
     m_isvlen = other.m_isvlen;
-    m_data.reset(new t_lstore(other.m_data->get_recipe()));
-    m_vocab.reset(new t_vocab(other.m_vocab->get_vlendata()->get_recipe(),
-        other.m_vocab->get_extents()->get_recipe()));
-    m_status.reset(new t_lstore(other.m_status->get_recipe()));
+    m_data = std::make_shared<t_lstore>(other.m_data->get_recipe());
+    m_vocab
+        = std::make_shared<t_vocab>(other.m_vocab->get_vlendata()->get_recipe(),
+            other.m_vocab->get_extents()->get_recipe());
+    m_status = std::make_shared<t_lstore>(other.m_status->get_recipe());
 
     m_size = other.m_size;
     m_status_enabled = other.m_status_enabled;
@@ -108,7 +113,7 @@ t_column::t_column(t_dtype dtype, bool missing_enabled,
     , m_status_enabled(missing_enabled)
     , m_from_recipe(false) {
 
-    m_data.reset(new t_lstore(a));
+    m_data = std::make_shared<t_lstore>(a);
     // TODO make sure that capacity from a
     // is not causing an overrreserve in places
     // most notably in valid columns
@@ -125,9 +130,9 @@ t_column::t_column(t_dtype dtype, bool missing_enabled,
         vlendata_args.m_colname = a.m_colname + std::string("_vlendata");
         extents_args.m_colname = a.m_colname + std::string("_extents");
 
-        m_vocab.reset(new t_vocab(vlendata_args, extents_args));
+        m_vocab = std::make_shared<t_vocab>(vlendata_args, extents_args);
     } else {
-        m_vocab.reset(new t_vocab);
+        m_vocab = std::make_shared<t_vocab>();
     }
 
     if (is_status_enabled()) {
@@ -135,9 +140,9 @@ t_column::t_column(t_dtype dtype, bool missing_enabled,
         missing_args.m_capacity = row_capacity;
 
         missing_args.m_colname = a.m_colname + std::string("_missing");
-        m_status.reset(new t_lstore(missing_args));
+        m_status = std::make_shared<t_lstore>(missing_args);
     } else {
-        m_status.reset(new t_lstore);
+        m_status = std::make_shared<t_lstore>();
     }
 }
 
@@ -160,8 +165,9 @@ t_column::init() {
         m_status->init();
     }
 
-    if (is_deterministic_sized(m_dtype))
+    if (is_deterministic_sized(m_dtype)) {
         m_elemsize = get_dtype_size(m_dtype);
+    }
     m_init = true;
     COLUMN_CHECK_VALUES();
 }
@@ -203,7 +209,7 @@ template <>
 void
 t_column::push_back<const char*>(const char* elem) {
     COLUMN_CHECK_STRCOL();
-    if (!elem) {
+    if (elem == nullptr) {
         m_data->push_back(static_cast<t_uindex>(0));
         return;
     }
@@ -252,7 +258,7 @@ template <>
 void
 t_column::push_back<std::string>(std::string elem, t_status status) {
     COLUMN_CHECK_STRCOL();
-    push_back(elem);
+    push_back(std::move(elem));
     m_status->push_back(status);
     ++m_size;
 }
@@ -337,15 +343,17 @@ t_column::set_size(t_uindex size) {
     m_size = size;
     m_data->set_size(m_elemsize * size);
 
-    if (is_status_enabled())
+    if (is_status_enabled()) {
         m_status->set_size(get_dtype_size(DTYPE_UINT8) * size);
+    }
 }
 
 void
 t_column::reserve(t_uindex size) {
     m_data->reserve(get_dtype_size(m_dtype) * size);
-    if (is_status_enabled())
+    if (is_status_enabled()) {
         m_status->reserve(get_dtype_size(DTYPE_UINT8) * size);
+    }
 }
 
 // object storage, specialize only for std::uint64_t
@@ -355,8 +363,9 @@ t_column::object_copied<std::uint64_t>(t_uindex ptr) const {}
 
 void
 t_column::notify_object_copied(t_uindex idx) const {
-    if (*get_nth_status(idx) == STATUS_VALID)
+    if (*get_nth_status(idx) == STATUS_VALID) {
         object_copied<PSP_OBJECT_TYPE>(*(get_nth<std::uint64_t>(idx)));
+    }
 }
 
 template <>
@@ -365,8 +374,9 @@ t_column::object_cleared<std::uint64_t>(t_uindex ptr) const {}
 
 void
 t_column::notify_object_cleared(t_uindex idx) const {
-    if (*get_nth_status(idx) == STATUS_VALID)
+    if (*get_nth_status(idx) == STATUS_VALID) {
         object_cleared<PSP_OBJECT_TYPE>(*(get_nth<std::uint64_t>(idx)));
+    }
 }
 
 t_lstore*
@@ -460,8 +470,9 @@ t_column::get_scalar(t_uindex idx) const {
         }
     }
 
-    if (is_status_enabled())
+    if (is_status_enabled()) {
         rv.m_status = *get_nth_status(idx);
+    }
     return rv;
 }
 
@@ -523,7 +534,7 @@ char*
 t_column::get_nth<char>(t_uindex idx) {
     PSP_COMPLAIN_AND_ABORT("Unsafe operation detected");
     ++idx;
-    return 0;
+    return nullptr;
 }
 
 template <>
@@ -531,7 +542,7 @@ const char*
 t_column::get_nth<const char>(t_uindex idx) const {
     COLUMN_CHECK_ACCESS(idx);
     COLUMN_CHECK_STRCOL();
-    const t_uindex* sidx = get_nth<t_uindex>(idx);
+    const auto* sidx = get_nth<t_uindex>(idx);
     return m_vocab->unintern_c(*sidx);
 }
 
@@ -540,7 +551,7 @@ const t_status*
 t_column::get_nth_status(t_uindex idx) const {
     PSP_VERBOSE_ASSERT(is_status_enabled(), "Status not available for column");
     COLUMN_CHECK_ACCESS(idx);
-    t_status* status = m_status->get_nth<t_status>(idx);
+    auto* status = m_status->get_nth<t_status>(idx);
     return status;
 }
 
@@ -665,7 +676,7 @@ t_column::set_scalar(t_uindex idx, t_tscalar value) {
             const char* tgt = value.get_char_ptr();
             std::string empty;
 
-            if (tgt) {
+            if (tgt != nullptr) {
                 PSP_VERBOSE_ASSERT(value.m_type == DTYPE_STR,
                     "Setting non string scalar on string column");
                 set_nth<const char*>(idx, tgt, value.m_status);
@@ -730,8 +741,9 @@ void
 t_column::clear() {
     // clear out the data store
     m_data->set_size(0);
-    if (m_dtype == DTYPE_STR)
+    if (m_dtype == DTYPE_STR) {
         m_data->clear();
+    }
     if (is_status_enabled()) {
         m_status->clear();
     }
@@ -739,7 +751,7 @@ t_column::clear() {
 }
 
 void
-t_column::clear_objects() {
+t_column::clear_objects() const {
     for (t_uindex idx = 0, loop_end = size(); idx < loop_end; ++idx) {
         notify_object_cleared(idx);
     }
@@ -780,14 +792,15 @@ t_column::copy_vocabulary(const t_column* other) {
     other->verify();
 #endif
     COLUMN_CHECK_STRCOL();
-    m_vocab->copy_vocabulary(*(other->m_vocab.get()));
+    m_vocab->copy_vocabulary(*(other->m_vocab));
     COLUMN_CHECK_VALUES();
 }
 
 void
 t_column::pprint_vocabulary() const {
-    if (!is_vlen_dtype(m_dtype))
+    if (!is_vlen_dtype(m_dtype)) {
         return;
+    }
     m_vocab->pprint_vocabulary();
 }
 
@@ -948,8 +961,9 @@ t_column::verify() const {
 
 void
 t_column::verify_size(t_uindex idx) const {
-    if (m_dtype == DTYPE_USER_FIXED)
+    if (m_dtype == DTYPE_USER_FIXED) {
         return;
+    }
 
     PSP_VERBOSE_ASSERT(idx * get_dtype_size(m_dtype) <= m_data->capacity(),
         "Not enough space reserved for column");

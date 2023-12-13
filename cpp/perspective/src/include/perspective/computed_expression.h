@@ -48,15 +48,14 @@ class PERSPECTIVE_EXPORT t_computed_expression {
 public:
     PSP_NON_COPYABLE(t_computed_expression);
 
-    t_computed_expression(const std::string& expression_alias,
-        const std::string& expression_string,
-        const std::string& parsed_expression_string,
+    t_computed_expression(std::string expression_alias,
+        std::string expression_string, std::string parsed_expression_string,
         const std::vector<std::pair<std::string, std::string>>& column_ids,
         t_dtype dtype);
 
-    void compute(std::shared_ptr<t_data_table> source_table,
+    void compute(const std::shared_ptr<t_data_table>& source_table,
         const t_gstate::t_mapping& pkey_map,
-        std::shared_ptr<t_data_table> destination_table,
+        const std::shared_ptr<t_data_table>& destination_table,
         t_expression_vocab& vocab, t_regex_mapping& regex_mapping) const;
 
     const std::string& get_expression_alias() const;
@@ -101,8 +100,9 @@ public:
         const std::string& parsed_expression_string,
         const std::vector<std::pair<std::string, std::string>>& column_ids,
         std::shared_ptr<t_data_table> source_table,
-        const t_gstate::t_mapping& pkey_map, std::shared_ptr<t_schema> schema,
-        t_expression_vocab& vocab, t_regex_mapping& regex_mapping);
+        const t_gstate::t_mapping& pkey_map,
+        const std::shared_ptr<t_schema>& schema, t_expression_vocab& vocab,
+        t_regex_mapping& regex_mapping);
 
     /**
      * @brief Returns the dtype of the given expression, or `DTYPE_NONE`
@@ -194,8 +194,8 @@ struct PERSPECTIVE_EXPORT t_computed_function_store {
 
     t_computed_function_store(t_expression_vocab& vocab,
         t_regex_mapping& regex_mapping, bool is_type_validator,
-        std::shared_ptr<t_data_table> source_table,
-        const t_gstate::t_mapping& pkey_map, t_uindex& row_count);
+        const std::shared_ptr<t_data_table>& source_table,
+        const t_gstate::t_mapping& pkey_map, t_uindex& row_idx);
 
     void register_computed_functions(
         exprtk::symbol_table<t_tscalar>& sym_table);

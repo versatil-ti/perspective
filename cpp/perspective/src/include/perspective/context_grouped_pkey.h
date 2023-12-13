@@ -29,7 +29,7 @@ class PERSPECTIVE_EXPORT t_ctx_grouped_pkey
     : public t_ctxbase<t_ctx_grouped_pkey> {
 public:
     t_ctx_grouped_pkey();
-    t_ctx_grouped_pkey(t_schema schema, t_config config);
+    t_ctx_grouped_pkey(const t_schema& schema, const t_config& config);
 
     ~t_ctx_grouped_pkey();
 

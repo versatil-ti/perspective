@@ -38,7 +38,7 @@ template <typename CTX_T>
 class PERSPECTIVE_EXPORT View {
 public:
     View(std::shared_ptr<Table> table, std::shared_ptr<CTX_T> ctx,
-        const std::string& name, const std::string& separator,
+        std::string name, std::string separator,
         std::shared_ptr<t_view_config> view_config);
 
     ~View();

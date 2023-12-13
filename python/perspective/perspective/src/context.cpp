@@ -17,31 +17,30 @@
 #include <perspective/python/base.h>
 #include <perspective/python/context.h>
 
-namespace perspective {
-namespace binding {
+namespace perspective::binding {
 
-    /******************************************************************************
-     *
-     * Context API
-     */
+/******************************************************************************
+ *
+ * Context API
+ */
 
-    template <>
-    std::shared_ptr<t_ctxunit>
-    make_context(std::shared_ptr<Table> table, std::shared_ptr<t_schema> schema,
-        std::shared_ptr<t_view_config> view_config, const std::string& name) {
-        auto columns = view_config->get_columns();
+template <>
+std::shared_ptr<t_ctxunit>
+make_context(std::shared_ptr<Table> table, std::shared_ptr<t_schema> schema,
+    std::shared_ptr<t_view_config> view_config, const std::string& name) {
+    auto columns = view_config->get_columns();
 
-        auto cfg = t_config(columns);
-        auto ctx_unit = std::make_shared<t_ctxunit>(*(schema.get()), cfg);
-        ctx_unit->init();
+    auto cfg = t_config(columns);
+    auto ctx_unit = std::make_shared<t_ctxunit>(*(schema), cfg);
+    ctx_unit->init();
 
-        auto pool = table->get_pool();
-        auto gnode = table->get_gnode();
+    auto pool = table->get_pool();
+    auto gnode = table->get_gnode();
 
-        pool->register_context(gnode->get_id(), name, UNIT_CONTEXT,
-            reinterpret_cast<std::uintptr_t>(ctx_unit.get()));
+    pool->register_context(gnode->get_id(), name, UNIT_CONTEXT,
+        reinterpret_cast<std::uintptr_t>(ctx_unit.get()));
 
-        return ctx_unit;
+    return ctx_unit;
     }
 
     template <>
@@ -55,7 +54,7 @@ namespace binding {
         auto expressions = view_config->get_used_expressions();
 
         auto cfg = t_config(columns, fterm, filter_op, expressions);
-        auto ctx0 = std::make_shared<t_ctx0>(*(schema.get()), cfg);
+        auto ctx0 = std::make_shared<t_ctx0>(*(schema), cfg);
         ctx0->init();
         ctx0->sort_by(sortspec);
 
@@ -81,7 +80,7 @@ namespace binding {
 
         auto cfg
             = t_config(row_pivots, aggspecs, fterm, filter_op, expressions);
-        auto ctx1 = std::make_shared<t_ctx1>(*(schema.get()), cfg);
+        auto ctx1 = std::make_shared<t_ctx1>(*(schema), cfg);
 
         ctx1->init();
         ctx1->sort_by(sortspec);
@@ -116,11 +115,11 @@ namespace binding {
         auto column_pivot_depth = view_config->get_column_pivot_depth();
         auto expressions = view_config->get_used_expressions();
 
-        t_totals total = sortspec.size() > 0 ? TOTALS_BEFORE : TOTALS_HIDDEN;
+        t_totals total = !sortspec.empty() ? TOTALS_BEFORE : TOTALS_HIDDEN;
 
         auto cfg = t_config(row_pivots, column_pivots, aggspecs, total, fterm,
             filter_op, expressions, column_only);
-        auto ctx2 = std::make_shared<t_ctx2>(*(schema.get()), cfg);
+        auto ctx2 = std::make_shared<t_ctx2>(*(schema), cfg);
 
         ctx2->init();
 
@@ -141,18 +140,17 @@ namespace binding {
             ctx2->set_depth(t_header::HEADER_COLUMN, column_pivots.size());
         }
 
-        if (sortspec.size() > 0) {
+        if (!sortspec.empty()) {
             ctx2->sort_by(sortspec);
         }
 
-        if (col_sortspec.size() > 0) {
+        if (!col_sortspec.empty()) {
             ctx2->column_sort_by(col_sortspec);
         }
 
         return ctx2;
     }
 
-} // namespace binding
-} // namespace perspective
+    } // namespace perspective::binding
 
 #endif

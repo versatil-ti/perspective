@@ -132,10 +132,10 @@ struct t_operator_contains<t_uindex, DTYPE_STR> {
 struct PERSPECTIVE_EXPORT t_fterm {
     t_fterm();
 
-    t_fterm(const std::string& colname, t_filter_op op, t_tscalar threshold,
+    t_fterm(std::string colname, t_filter_op op, t_tscalar threshold,
         const std::vector<t_tscalar>& bag);
 
-    t_fterm(const std::string& colname, t_filter_op op, t_tscalar threshold,
+    t_fterm(std::string colname, t_filter_op op, t_tscalar threshold,
         const std::vector<t_tscalar>& bag, bool negated, bool is_primary);
 
     inline bool

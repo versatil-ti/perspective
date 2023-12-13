@@ -13,31 +13,33 @@
 #ifdef PSP_ENABLE_PYTHON
 #include <perspective/python/view.h>
 
-namespace perspective {
-namespace binding {
+#include <utility>
 
-    /******************************************************************************
-     *
-     * View API
-     */
+namespace perspective::binding {
 
-    template <>
-    bool
-    is_valid_filter(
-        t_dtype type, t_val date_parser, t_filter_op comp, t_val filter_term) {
-        if (comp == t_filter_op::FILTER_OP_IS_NULL
-            || comp == t_filter_op::FILTER_OP_IS_NOT_NULL) {
-            return true;
-        } else if (type == DTYPE_DATE || type == DTYPE_TIME) {
-            if (py::isinstance<py::str>(filter_term)) {
-                t_val parsed_date = date_parser.attr("parse")(filter_term);
-                return !parsed_date.is_none();
-            } else {
-                return !filter_term.is_none();
-            }
+/******************************************************************************
+ *
+ * View API
+ */
+
+template <>
+bool
+is_valid_filter(
+    t_dtype type, t_val date_parser, t_filter_op comp, t_val filter_term) {
+    if (comp == t_filter_op::FILTER_OP_IS_NULL
+        || comp == t_filter_op::FILTER_OP_IS_NOT_NULL) {
+        return true;
+    }
+    if (type == DTYPE_DATE || type == DTYPE_TIME) {
+        if (py::isinstance<py::str>(filter_term)) {
+            t_val parsed_date = date_parser.attr("parse")(filter_term);
+            return !parsed_date.is_none();
         } else {
             return !filter_term.is_none();
         }
+    } else {
+        return !filter_term.is_none();
+    }
     };
 
     template <>
@@ -51,9 +53,9 @@ namespace binding {
         switch (filter_op) {
             case FILTER_OP_NOT_IN:
             case FILTER_OP_IN: {
-                std::vector<std::string> filter_terms
+                auto filter_terms
                     = filter_term.cast<std::vector<std::string>>();
-                for (auto term : filter_terms) {
+                for (const auto& term : filter_terms) {
                     terms.push_back(mktscalar(get_interned_cstr(term.c_str())));
                 }
             } break;
@@ -103,7 +105,7 @@ namespace binding {
                         if (py::isinstance<py::str>(filter_term)) {
                             t_val parsed_date
                                 = date_parser.attr("parse")(filter_term);
-                            std::int64_t ts
+                            auto ts
                                 = date_parser.attr("to_timestamp")(parsed_date)
                                       .cast<std::int64_t>();
                             t_tscalar timestamp = mktscalar(t_time(ts));
@@ -161,8 +163,8 @@ namespace binding {
         bool column_only = false;
 
         // make sure that primary keys are created for column-only views
-        if (row_pivots.size() == 0 && column_pivots.size() > 0) {
-            row_pivots.push_back("psp_okey");
+        if (row_pivots.empty() && !column_pivots.empty()) {
+            row_pivots.emplace_back("psp_okey");
             column_only = true;
         }
 
@@ -178,11 +180,10 @@ namespace binding {
 
         // Will either abort() or succeed completely, and this isn't a public
         // API so we can directly index for speed.
-        for (t_uindex idx = 0; idx < p_expressions.size(); ++idx) {
-            const auto& expr = p_expressions[idx];
-            std::string expression_alias = expr[0].cast<std::string>();
-            std::string expression_string = expr[1].cast<std::string>();
-            std::string parsed_expression_string = expr[2].cast<std::string>();
+        for (const auto& expr : p_expressions) {
+            auto expression_alias = expr[0].cast<std::string>();
+            auto expression_string = expr[1].cast<std::string>();
+            auto parsed_expression_string = expr[2].cast<std::string>();
 
             // Don't allow overwriting of "real" table columns or multiple
             // columns with the same alias.
@@ -227,8 +228,8 @@ namespace binding {
 
         for (auto f : p_filter) {
             // parse filter details
-            std::string column_name = f[0].cast<std::string>();
-            std::string filter_op_str = f[1].cast<std::string>();
+            auto column_name = f[0].cast<std::string>();
+            auto filter_op_str = f[1].cast<std::string>();
             t_dtype column_type = schema->get_dtype(column_name);
             t_filter_op filter_operator = str_to_filter_op(filter_op_str);
 
@@ -288,8 +289,8 @@ namespace binding {
         // validate expressions.
         const t_gnode& gnode = *(table->get_gnode());
 
-        std::shared_ptr<t_view_config> config
-            = make_view_config<t_val>(gnode, schema, date_parser, view_config);
+        std::shared_ptr<t_view_config> config = make_view_config<t_val>(
+            gnode, schema, std::move(date_parser), std::move(view_config));
         {
             PSP_GIL_UNLOCK();
             auto ctx = make_context<CTX_T>(table, schema, config, name);
@@ -300,31 +301,31 @@ namespace binding {
     }
 
     std::shared_ptr<View<t_ctxunit>>
-    make_view_unit(std::shared_ptr<Table> table, std::string name,
-        std::string separator, t_val view_config, t_val date_parser) {
-        return make_view<t_ctxunit>(
-            table, name, separator, view_config, date_parser);
+    make_view_unit(std::shared_ptr<Table> table, const std::string& name,
+        const std::string& separator, t_val view_config, t_val date_parser) {
+        return make_view<t_ctxunit>(std::move(table), name, separator,
+            std::move(view_config), std::move(date_parser));
     }
 
     std::shared_ptr<View<t_ctx0>>
-    make_view_ctx0(std::shared_ptr<Table> table, std::string name,
-        std::string separator, t_val view_config, t_val date_parser) {
-        return make_view<t_ctx0>(
-            table, name, separator, view_config, date_parser);
+    make_view_ctx0(std::shared_ptr<Table> table, const std::string& name,
+        const std::string& separator, t_val view_config, t_val date_parser) {
+        return make_view<t_ctx0>(std::move(table), name, separator,
+            std::move(view_config), std::move(date_parser));
     }
 
     std::shared_ptr<View<t_ctx1>>
-    make_view_ctx1(std::shared_ptr<Table> table, std::string name,
-        std::string separator, t_val view_config, t_val date_parser) {
-        return make_view<t_ctx1>(
-            table, name, separator, view_config, date_parser);
+    make_view_ctx1(std::shared_ptr<Table> table, const std::string& name,
+        const std::string& separator, t_val view_config, t_val date_parser) {
+        return make_view<t_ctx1>(std::move(table), name, separator,
+            std::move(view_config), std::move(date_parser));
     }
 
     std::shared_ptr<View<t_ctx2>>
-    make_view_ctx2(std::shared_ptr<Table> table, std::string name,
-        std::string separator, t_val view_config, t_val date_parser) {
-        return make_view<t_ctx2>(
-            table, name, separator, view_config, date_parser);
+    make_view_ctx2(std::shared_ptr<Table> table, const std::string& name,
+        const std::string& separator, t_val view_config, t_val date_parser) {
+        return make_view<t_ctx2>(std::move(table), name, separator,
+            std::move(view_config), std::move(date_parser));
     }
 
     /******************************************************************************
@@ -333,9 +334,9 @@ namespace binding {
      */
 
     py::bytes
-    to_arrow_unit(std::shared_ptr<View<t_ctxunit>> view, std::int32_t start_row,
-        std::int32_t end_row, std::int32_t start_col, std::int32_t end_col,
-        bool compress) {
+    to_arrow_unit(const std::shared_ptr<View<t_ctxunit>>& view,
+        std::int32_t start_row, std::int32_t end_row, std::int32_t start_col,
+        std::int32_t end_col, bool compress) {
         PSP_GIL_UNLOCK();
         PSP_READ_LOCK(view->get_lock());
         std::shared_ptr<std::string> str = view->to_arrow(
@@ -344,9 +345,9 @@ namespace binding {
     }
 
     py::bytes
-    to_arrow_zero(std::shared_ptr<View<t_ctx0>> view, std::int32_t start_row,
-        std::int32_t end_row, std::int32_t start_col, std::int32_t end_col,
-        bool compress) {
+    to_arrow_zero(const std::shared_ptr<View<t_ctx0>>& view,
+        std::int32_t start_row, std::int32_t end_row, std::int32_t start_col,
+        std::int32_t end_col, bool compress) {
         PSP_GIL_UNLOCK();
         PSP_READ_LOCK(view->get_lock());
         std::shared_ptr<std::string> str = view->to_arrow(
@@ -355,9 +356,9 @@ namespace binding {
     }
 
     py::bytes
-    to_arrow_one(std::shared_ptr<View<t_ctx1>> view, std::int32_t start_row,
-        std::int32_t end_row, std::int32_t start_col, std::int32_t end_col,
-        bool compress) {
+    to_arrow_one(const std::shared_ptr<View<t_ctx1>>& view,
+        std::int32_t start_row, std::int32_t end_row, std::int32_t start_col,
+        std::int32_t end_col, bool compress) {
         PSP_GIL_UNLOCK();
         PSP_READ_LOCK(view->get_lock());
         std::shared_ptr<std::string> str = view->to_arrow(
@@ -366,9 +367,9 @@ namespace binding {
     }
 
     py::bytes
-    to_arrow_two(std::shared_ptr<View<t_ctx2>> view, std::int32_t start_row,
-        std::int32_t end_row, std::int32_t start_col, std::int32_t end_col,
-        bool compress) {
+    to_arrow_two(const std::shared_ptr<View<t_ctx2>>& view,
+        std::int32_t start_row, std::int32_t end_row, std::int32_t start_col,
+        std::int32_t end_col, bool compress) {
         PSP_GIL_UNLOCK();
         PSP_READ_LOCK(view->get_lock());
         std::shared_ptr<std::string> str = view->to_arrow(
@@ -377,32 +378,36 @@ namespace binding {
     }
 
     std::string
-    to_csv_unit(std::shared_ptr<View<t_ctxunit>> view, std::int32_t start_row,
-        std::int32_t end_row, std::int32_t start_col, std::int32_t end_col) {
+    to_csv_unit(const std::shared_ptr<View<t_ctxunit>>& view,
+        std::int32_t start_row, std::int32_t end_row, std::int32_t start_col,
+        std::int32_t end_col) {
         PSP_GIL_UNLOCK();
         PSP_READ_LOCK(view->get_lock());
         return *view->to_csv(start_row, end_row, start_col, end_col);
     }
 
     std::string
-    to_csv_zero(std::shared_ptr<View<t_ctx0>> view, std::int32_t start_row,
-        std::int32_t end_row, std::int32_t start_col, std::int32_t end_col) {
+    to_csv_zero(const std::shared_ptr<View<t_ctx0>>& view,
+        std::int32_t start_row, std::int32_t end_row, std::int32_t start_col,
+        std::int32_t end_col) {
         PSP_GIL_UNLOCK();
         PSP_READ_LOCK(view->get_lock());
         return *view->to_csv(start_row, end_row, start_col, end_col);
     }
 
     std::string
-    to_csv_one(std::shared_ptr<View<t_ctx1>> view, std::int32_t start_row,
-        std::int32_t end_row, std::int32_t start_col, std::int32_t end_col) {
+    to_csv_one(const std::shared_ptr<View<t_ctx1>>& view,
+        std::int32_t start_row, std::int32_t end_row, std::int32_t start_col,
+        std::int32_t end_col) {
         PSP_GIL_UNLOCK();
         PSP_READ_LOCK(view->get_lock());
         return *view->to_csv(start_row, end_row, start_col, end_col);
     }
 
     std::string
-    to_csv_two(std::shared_ptr<View<t_ctx2>> view, std::int32_t start_row,
-        std::int32_t end_row, std::int32_t start_col, std::int32_t end_col) {
+    to_csv_two(const std::shared_ptr<View<t_ctx2>>& view,
+        std::int32_t start_row, std::int32_t end_row, std::int32_t start_col,
+        std::int32_t end_col) {
         PSP_GIL_UNLOCK();
         PSP_READ_LOCK(view->get_lock());
         return *view->to_csv(start_row, end_row, start_col, end_col);
@@ -414,7 +419,7 @@ namespace binding {
      */
 
     py::bytes
-    get_row_delta_unit(std::shared_ptr<View<t_ctxunit>> view) {
+    get_row_delta_unit(const std::shared_ptr<View<t_ctxunit>>& view) {
         PSP_GIL_UNLOCK();
         PSP_READ_LOCK(view->get_lock());
         std::shared_ptr<t_data_slice<t_ctxunit>> slice = view->get_row_delta();
@@ -424,7 +429,7 @@ namespace binding {
     }
 
     py::bytes
-    get_row_delta_zero(std::shared_ptr<View<t_ctx0>> view) {
+    get_row_delta_zero(const std::shared_ptr<View<t_ctx0>>& view) {
         PSP_GIL_UNLOCK();
         PSP_READ_LOCK(view->get_lock());
         std::shared_ptr<t_data_slice<t_ctx0>> slice = view->get_row_delta();
@@ -434,7 +439,7 @@ namespace binding {
     }
 
     py::bytes
-    get_row_delta_one(std::shared_ptr<View<t_ctx1>> view) {
+    get_row_delta_one(const std::shared_ptr<View<t_ctx1>>& view) {
         PSP_GIL_UNLOCK();
         PSP_READ_LOCK(view->get_lock());
         std::shared_ptr<t_data_slice<t_ctx1>> slice = view->get_row_delta();
@@ -444,7 +449,7 @@ namespace binding {
     }
 
     py::bytes
-    get_row_delta_two(std::shared_ptr<View<t_ctx2>> view) {
+    get_row_delta_two(const std::shared_ptr<View<t_ctx2>>& view) {
         PSP_GIL_UNLOCK();
         PSP_READ_LOCK(view->get_lock());
         std::shared_ptr<t_data_slice<t_ctx2>> slice = view->get_row_delta();
@@ -453,7 +458,6 @@ namespace binding {
         return py::bytes(*arrow);
     }
 
-} // namespace binding
-} // namespace perspective
+    } // namespace perspective::binding
 
 #endif

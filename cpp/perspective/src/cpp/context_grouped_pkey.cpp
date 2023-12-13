@@ -10,7 +10,6 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
-
 #include <perspective/context_grouped_pkey.h>
 #include <perspective/first.h>
 #include <perspective/get_data_extents.h>
@@ -22,8 +21,11 @@
 #include <perspective/traversal.h>
 #include <perspective/env_vars.h>
 #include <perspective/filter_utils.h>
+#include <cstddef>
+#include <memory>
 #include <queue>
 #include <tuple>
+#include <utility>
 #include <tsl/hopscotch_set.h>
 
 namespace perspective {
@@ -32,13 +34,14 @@ t_ctx_grouped_pkey::t_ctx_grouped_pkey()
     : m_depth(0)
     , m_depth_set(false) {}
 
-t_ctx_grouped_pkey::t_ctx_grouped_pkey(t_schema schema, t_config config)
+t_ctx_grouped_pkey::t_ctx_grouped_pkey(
+    const t_schema& schema, const t_config& config)
     : m_depth(0)
     , m_depth_set(false) {
     PSP_COMPLAIN_AND_ABORT("Not Implemented");
 }
 
-t_ctx_grouped_pkey::~t_ctx_grouped_pkey() {}
+t_ctx_grouped_pkey::~t_ctx_grouped_pkey() = default;
 
 void
 t_ctx_grouped_pkey::init() {
@@ -46,7 +49,7 @@ t_ctx_grouped_pkey::init() {
     m_tree = std::make_shared<t_stree>(
         pivots, m_config.get_aggregates(), m_schema, m_config);
     m_tree->init();
-    m_traversal = std::shared_ptr<t_traversal>(new t_traversal(m_tree));
+    m_traversal = std::make_shared<t_traversal>(m_tree);
 
     // Each context stores its own expression columns in separate
     // `t_data_table`s so that each context's expressions are isolated
@@ -98,8 +101,9 @@ t_ctx_grouped_pkey::open(t_index idx) {
     m_depth_set = false;
     m_depth = 0;
 
-    if (idx >= t_index(m_traversal->size()))
+    if (idx >= t_index(m_traversal->size())) {
         return 0;
+    }
 
     t_index retval = m_traversal->expand_node(m_sortby, idx);
     m_rows_changed = (retval > 0);
@@ -114,8 +118,9 @@ t_ctx_grouped_pkey::close(t_index idx) {
     m_depth_set = false;
     m_depth = 0;
 
-    if (idx >= t_index(m_traversal->size()))
+    if (idx >= t_index(m_traversal->size())) {
         return 0;
+    }
 
     t_index retval = m_traversal->collapse_node(idx);
     m_rows_changed = (retval > 0);
@@ -134,15 +139,16 @@ t_ctx_grouped_pkey::get_data(t_index start_row, t_index end_row,
 
     t_index nrows = ext.m_erow - ext.m_srow;
     t_index stride = ext.m_ecol - ext.m_scol;
-    std::vector<t_tscalar> values(nrows * stride);
-    std::vector<t_tscalar> tmpvalues(nrows * ncols);
+    std::vector<t_tscalar> values(static_cast<std::size_t>(nrows) * stride);
+    std::vector<t_tscalar> tmpvalues(static_cast<std::size_t>(nrows) * ncols);
 
     std::vector<const t_column*> aggcols(m_config.get_num_aggregates());
 
-    if (aggcols.empty())
+    if (aggcols.empty()) {
         return values;
+    }
 
-    auto aggtable = m_tree->get_aggtable();
+    auto* aggtable = m_tree->get_aggtable();
     t_schema aggschema = aggtable->get_schema();
 
     for (t_uindex aggidx = 0, loop_end = aggcols.size(); aggidx < loop_end;
@@ -173,7 +179,8 @@ t_ctx_grouped_pkey::get_data(t_index start_row, t_index end_row,
                 get_value_from_gstate(grouping_label_col, iters.first->m_pkey));
         }
 
-        tmpvalues[(ridx - ext.m_srow) * ncols] = tree_value;
+        tmpvalues[static_cast<std::size_t>(ridx - ext.m_srow) * ncols]
+            = tree_value;
 
         for (t_index aggidx = 0, loop_end = aggcols.size(); aggidx < loop_end;
              ++aggidx) {
@@ -282,7 +289,7 @@ t_ctx_grouped_pkey::get_flattened_tree(t_index idx, t_depth stop_depth) {
     PSP_TRACE_SENTINEL();
     PSP_VERBOSE_ASSERT(m_init, "touching uninited object");
     return ctx_get_flattened_tree(
-        idx, stop_depth, *(m_traversal.get()), m_config, m_sortby);
+        idx, stop_depth, *(m_traversal), m_config, m_sortby);
 }
 
 std::shared_ptr<const t_traversal>
@@ -335,8 +342,9 @@ t_ctx_grouped_pkey::get_pkeys(
     for (const auto& c : cells) {
         auto ptidx = m_traversal->get_tree_index(c.first);
 
-        if (static_cast<t_uindex>(ptidx) == static_cast<t_uindex>(-1))
+        if (static_cast<t_uindex>(ptidx) == static_cast<t_uindex>(-1)) {
             continue;
+        }
 
         if (seen.find(ptidx) == seen.end()) {
             auto iters = m_tree->get_pkeys_for_leaf(ptidx);
@@ -349,8 +357,9 @@ t_ctx_grouped_pkey::get_pkeys(
         auto desc = m_tree->get_descendents(ptidx);
 
         for (auto d : desc) {
-            if (seen.find(d) != seen.end())
+            if (seen.find(d) != seen.end()) {
                 continue;
+            }
 
             auto iters = m_tree->get_pkeys_for_leaf(d);
             for (auto iter = iters.first; iter != iters.second; ++iter) {
@@ -403,8 +412,8 @@ t_ctx_grouped_pkey::get_cell_delta(t_index bidx, t_index eidx) const {
         t_index ptidx = m_traversal->get_tree_index(idx);
         auto iterators = deltas->get<by_tc_nidx_aggidx>().equal_range(ptidx);
         for (auto iter = iterators.first; iter != iterators.second; ++iter) {
-            rval.push_back(t_cellupd(
-                idx, iter->m_aggidx + 1, iter->m_old_value, iter->m_new_value));
+            rval.emplace_back(
+                idx, iter->m_aggidx + 1, iter->m_old_value, iter->m_new_value);
         }
     }
     return rval;
@@ -417,10 +426,11 @@ t_ctx_grouped_pkey::reset(bool reset_expressions) {
         pivots, m_config.get_aggregates(), m_schema, m_config);
     m_tree->init();
     m_tree->set_deltas_enabled(get_feature_state(CTX_FEAT_DELTA));
-    m_traversal = std::shared_ptr<t_traversal>(new t_traversal(m_tree));
+    m_traversal = std::make_shared<t_traversal>(m_tree);
 
-    if (reset_expressions)
+    if (reset_expressions) {
         m_expression_tables->reset();
+    }
 }
 
 void
@@ -451,7 +461,7 @@ t_ctx_grouped_pkey::has_deltas() const {
 
 template <typename DATA_T>
 void
-rebuild_helper(t_column*) {}
+rebuild_helper(t_column* /*unused*/) {}
 
 void
 t_ctx_grouped_pkey::rebuild() {
@@ -496,13 +506,13 @@ t_ctx_grouped_pkey::rebuild() {
         t_uindex m_idx;
     };
 
-    auto sortby_col
+    const auto* sortby_col
         = tbl->get_const_column(m_config.get_sort_by(child_col_name)).get();
 
-    auto parent_col
+    const auto* parent_col
         = tbl->get_const_column(m_config.get_parent_pkey_column()).get();
 
-    auto pkey_col = tbl->get_const_column("psp_pkey").get();
+    const auto* pkey_col = tbl->get_const_column("psp_pkey").get();
 
     std::vector<t_datum> data(nrows);
     tsl::hopscotch_map<t_tscalar, t_uindex> child_ridx_map;
@@ -609,7 +619,7 @@ t_ctx_grouped_pkey::rebuild() {
         }
     }
 
-    auto aggtable = m_tree->_get_aggtable();
+    auto* aggtable = m_tree->_get_aggtable();
     aggtable->extend(nrows + 1);
 
     auto aggspecs = m_config.get_aggregates();
@@ -625,7 +635,7 @@ t_ctx_grouped_pkey::rebuild() {
         int(naggs), [&aggtable, &aggindices, &aggspecs, &tbl](int aggnum) {
             const t_aggspec& spec = aggspecs[aggnum];
             if (spec.agg() == AGGTYPE_IDENTITY) {
-                auto scol
+                auto* scol
                     = aggtable->get_column(spec.get_first_depname()).get();
                 scol->copy(
                     tbl->get_const_column(spec.get_first_depname()).get(),
@@ -633,7 +643,7 @@ t_ctx_grouped_pkey::rebuild() {
             }
         });
 
-    m_traversal = std::shared_ptr<t_traversal>(new t_traversal(m_tree));
+    m_traversal = std::make_shared<t_traversal>(m_tree);
 
     set_expansion_state(expansion_state);
 
@@ -660,7 +670,7 @@ t_ctx_grouped_pkey::notify(const t_data_table& flattened) {
 void
 t_ctx_grouped_pkey::get_aggregates_for_sorting(t_uindex nidx,
     const std::vector<t_index>& agg_indices, std::vector<t_tscalar>& aggregates,
-    t_ctx2*) const {
+    t_ctx2* /*unused*/) const {
     for (t_uindex idx = 0, loop_end = agg_indices.size(); idx < loop_end;
          ++idx) {
         auto which_agg = agg_indices[idx];
@@ -675,15 +685,17 @@ t_ctx_grouped_pkey::get_aggregates_for_sorting(t_uindex nidx,
 
 t_dtype
 t_ctx_grouped_pkey::get_column_dtype(t_uindex idx) const {
-    if (idx == 0 || idx >= static_cast<t_uindex>(get_column_count()))
+    if (idx == 0 || idx >= static_cast<t_uindex>(get_column_count())) {
         return DTYPE_NONE;
+    }
 
-    auto aggtable = m_tree->_get_aggtable();
+    auto* aggtable = m_tree->_get_aggtable();
     return aggtable->get_const_column(idx - 1)->get_dtype();
 }
 
 void
-t_ctx_grouped_pkey::compute_expressions(std::shared_ptr<t_data_table> master,
+t_ctx_grouped_pkey::compute_expressions(
+    const std::shared_ptr<t_data_table>& master,
     const t_gstate::t_mapping& pkey_map, t_expression_vocab& expression_vocab,
     t_regex_mapping& regex_mapping) {
     // Clear the transitional expression tables on the context so they are
@@ -707,12 +719,14 @@ t_ctx_grouped_pkey::compute_expressions(std::shared_ptr<t_data_table> master,
 }
 
 void
-t_ctx_grouped_pkey::compute_expressions(std::shared_ptr<t_data_table> master,
+t_ctx_grouped_pkey::compute_expressions(
+    const std::shared_ptr<t_data_table>& master,
     const t_gstate::t_mapping& pkey_map,
-    std::shared_ptr<t_data_table> flattened,
-    std::shared_ptr<t_data_table> delta, std::shared_ptr<t_data_table> prev,
-    std::shared_ptr<t_data_table> current,
-    std::shared_ptr<t_data_table> transitions,
+    const std::shared_ptr<t_data_table>& flattened,
+    const std::shared_ptr<t_data_table>& delta,
+    const std::shared_ptr<t_data_table>& prev,
+    const std::shared_ptr<t_data_table>& current,
+    const std::shared_ptr<t_data_table>& transitions,
     std::shared_ptr<t_data_table> existed, t_expression_vocab& expression_vocab,
     t_regex_mapping& regex_mapping) {
     // Clear the tables so they are ready for this round of updates
@@ -753,7 +767,7 @@ t_ctx_grouped_pkey::compute_expressions(std::shared_ptr<t_data_table> master,
     }
 
     // Calculate the transitions now that the intermediate tables are computed
-    m_expression_tables->calculate_transitions(existed);
+    m_expression_tables->calculate_transitions(std::move(existed));
 }
 
 t_uindex
@@ -774,25 +788,25 @@ t_ctx_grouped_pkey::get_value_from_gstate(
     if (is_expression_column(colname)) {
         return m_gstate->get_value(
             *(m_expression_tables->m_master), colname, pkey);
-    } else {
-        std::shared_ptr<t_data_table> master_table = m_gstate->get_table();
-        return m_gstate->get_value(*master_table, colname, pkey);
     }
+    std::shared_ptr<t_data_table> master_table = m_gstate->get_table();
+    return m_gstate->get_value(*master_table, colname, pkey);
 }
 
 std::vector<t_tscalar>
 t_ctx_grouped_pkey::unity_get_row_data(t_uindex idx) const {
     auto rval = get_data(idx, idx + 1, 0, get_column_count());
-    if (rval.empty())
-        return std::vector<t_tscalar>();
+    if (rval.empty()) {
+        return {};
+    }
 
-    return std::vector<t_tscalar>(rval.begin() + 1, rval.end());
+    return {rval.begin() + 1, rval.end()};
 }
 
 std::vector<t_tscalar>
 t_ctx_grouped_pkey::unity_get_column_data(t_uindex idx) const {
     PSP_COMPLAIN_AND_ABORT("Not implemented");
-    return std::vector<t_tscalar>();
+    return {};
 }
 
 std::vector<t_tscalar>
@@ -802,7 +816,7 @@ t_ctx_grouped_pkey::unity_get_row_path(t_uindex idx) const {
 
 std::vector<t_tscalar>
 t_ctx_grouped_pkey::unity_get_column_path(t_uindex idx) const {
-    return std::vector<t_tscalar>();
+    return {};
 }
 
 t_uindex

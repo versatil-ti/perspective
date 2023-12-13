@@ -30,7 +30,7 @@ namespace binding {
         std::uint32_t limit, std::string index, t_op op, bool is_arrow,
         bool is_csv, t_uindex port_id);
 
-    std::shared_ptr<Table> update_table_py(t_val table,
+    std::shared_ptr<Table> update_table_py(const t_val& table,
         t_data_accessor accessor, std::uint32_t limit, std::string index,
         t_op op, bool is_arrow, bool is_csv, t_uindex port_id);
 

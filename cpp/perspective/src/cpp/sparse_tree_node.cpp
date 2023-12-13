@@ -27,7 +27,7 @@ t_stnode::t_stnode(t_uindex idx, t_uindex pidx, const t_tscalar& value,
     m_sort_value.set(sort_value);
 }
 
-t_stnode::t_stnode() {}
+t_stnode::t_stnode() = default;
 
 void
 t_stnode::set_nstrands(t_index nstrands) {
@@ -43,15 +43,15 @@ t_stpkey::t_stpkey(t_uindex idx, t_tscalar pkey)
     : m_idx(idx)
     , m_pkey(pkey) {}
 
-t_stpkey::t_stpkey() {}
+t_stpkey::t_stpkey() = default;
 
 t_stleaves::t_stleaves(t_uindex idx, t_uindex lfidx)
     : m_idx(idx)
     , m_lfidx(lfidx) {}
 
-t_stleaves::t_stleaves() {}
+t_stleaves::t_stleaves() = default;
 
-t_cellinfo::t_cellinfo() {}
+t_cellinfo::t_cellinfo() = default;
 
 t_cellinfo::t_cellinfo(t_index idx, t_depth treenum, t_index agg_index,
     t_uindex ridx, t_uindex cidx)

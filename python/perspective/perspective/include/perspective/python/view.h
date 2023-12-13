@@ -55,54 +55,54 @@ namespace binding {
      * before they are used by Pybind.
      */
     std::shared_ptr<View<t_ctxunit>> make_view_unit(
-        std::shared_ptr<Table> table, std::string name, std::string separator,
-        t_val view_config, t_val date_parser);
+        std::shared_ptr<Table> table, const std::string& name,
+        const std::string& separator, t_val view_config, t_val date_parser);
     std::shared_ptr<View<t_ctx0>> make_view_ctx0(std::shared_ptr<Table> table,
-        std::string name, std::string separator, t_val view_config,
-        t_val date_parser);
+        const std::string& name, const std::string& separator,
+        t_val view_config, t_val date_parser);
     std::shared_ptr<View<t_ctx1>> make_view_ctx1(std::shared_ptr<Table> table,
-        std::string name, std::string separator, t_val view_config,
-        t_val date_parser);
+        const std::string& name, const std::string& separator,
+        t_val view_config, t_val date_parser);
     std::shared_ptr<View<t_ctx2>> make_view_ctx2(std::shared_ptr<Table> table,
-        std::string name, std::string separator, t_val view_config,
-        t_val date_parser);
+        const std::string& name, const std::string& separator,
+        t_val view_config, t_val date_parser);
 
-    py::bytes to_arrow_unit(std::shared_ptr<View<t_ctxunit>> view,
+    py::bytes to_arrow_unit(const std::shared_ptr<View<t_ctxunit>>& view,
         std::int32_t start_row, std::int32_t end_row, std::int32_t start_col,
         std::int32_t end_col, bool compress);
 
-    py::bytes to_arrow_zero(std::shared_ptr<View<t_ctx0>> view,
+    py::bytes to_arrow_zero(const std::shared_ptr<View<t_ctx0>>& view,
         std::int32_t start_row, std::int32_t end_row, std::int32_t start_col,
         std::int32_t end_col, bool compress);
 
-    py::bytes to_arrow_one(std::shared_ptr<View<t_ctx1>> view,
+    py::bytes to_arrow_one(const std::shared_ptr<View<t_ctx1>>& view,
         std::int32_t start_row, std::int32_t end_row, std::int32_t start_col,
         std::int32_t end_col, bool compress);
 
-    py::bytes to_arrow_two(std::shared_ptr<View<t_ctx2>> view,
+    py::bytes to_arrow_two(const std::shared_ptr<View<t_ctx2>>& view,
         std::int32_t start_row, std::int32_t end_row, std::int32_t start_col,
         std::int32_t end_col, bool compress);
 
-    std::string to_csv_unit(std::shared_ptr<View<t_ctxunit>> view,
+    std::string to_csv_unit(const std::shared_ptr<View<t_ctxunit>>& view,
         std::int32_t start_row, std::int32_t end_row, std::int32_t start_col,
         std::int32_t end_col);
 
-    std::string to_csv_zero(std::shared_ptr<View<t_ctx0>> view,
+    std::string to_csv_zero(const std::shared_ptr<View<t_ctx0>>& view,
         std::int32_t start_row, std::int32_t end_row, std::int32_t start_col,
         std::int32_t end_col);
 
-    std::string to_csv_one(std::shared_ptr<View<t_ctx1>> view,
+    std::string to_csv_one(const std::shared_ptr<View<t_ctx1>>& view,
         std::int32_t start_row, std::int32_t end_row, std::int32_t start_col,
         std::int32_t end_col);
 
-    std::string to_csv_two(std::shared_ptr<View<t_ctx2>> view,
+    std::string to_csv_two(const std::shared_ptr<View<t_ctx2>>& view,
         std::int32_t start_row, std::int32_t end_row, std::int32_t start_col,
         std::int32_t end_col);
 
-    py::bytes get_row_delta_unit(std::shared_ptr<View<t_ctxunit>> view);
-    py::bytes get_row_delta_zero(std::shared_ptr<View<t_ctx0>> view);
-    py::bytes get_row_delta_one(std::shared_ptr<View<t_ctx1>> view);
-    py::bytes get_row_delta_two(std::shared_ptr<View<t_ctx2>> view);
+    py::bytes get_row_delta_unit(const std::shared_ptr<View<t_ctxunit>>& view);
+    py::bytes get_row_delta_zero(const std::shared_ptr<View<t_ctx0>>& view);
+    py::bytes get_row_delta_one(const std::shared_ptr<View<t_ctx1>>& view);
+    py::bytes get_row_delta_two(const std::shared_ptr<View<t_ctx2>>& view);
 
 } // namespace binding
 } // namespace perspective

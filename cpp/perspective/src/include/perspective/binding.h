@@ -96,10 +96,10 @@ namespace binding {
             std::int32_t length, const char* destType = nullptr);
 
         template <typename T>
-        void fill_col_valid(T dcol, std::shared_ptr<t_column> col);
+        void fill_col_valid(T dcol, const std::shared_ptr<t_column>& col);
 
         template <typename T>
-        void fill_col_dict(T dictvec, std::shared_ptr<t_column> col);
+        void fill_col_dict(T dictvec, const std::shared_ptr<t_column>& col);
 
     } // namespace arraybuffer
 
@@ -175,7 +175,8 @@ namespace binding {
      * @brief Change a value at a given index inside the column.
      */
     template <typename T>
-    void set_column_nth(std::shared_ptr<t_column> col, t_uindex idx, T value);
+    void set_column_nth(
+        const std::shared_ptr<t_column>& col, t_uindex idx, T value);
 
     /**
      * @brief Utility function for accessing columns and adding data.
@@ -350,7 +351,7 @@ namespace binding {
      */
     template <typename T>
     T get_column_data(
-        std::shared_ptr<t_data_table> table, const std::string& colname);
+        const std::shared_ptr<t_data_table>& table, const std::string& colname);
 
     /**
      * @brief Get the t_data_slice object, which contains an underlying slice of
@@ -364,7 +365,7 @@ namespace binding {
      */
     template <typename CTX_T>
     std::shared_ptr<t_data_slice<CTX_T>> get_data_slice(
-        std::shared_ptr<View<CTX_T>> view, std::uint32_t start_row,
+        const std::shared_ptr<View<CTX_T>>& view, std::uint32_t start_row,
         std::uint32_t end_row, std::uint32_t start_col, std::uint32_t end_col);
 
     /**

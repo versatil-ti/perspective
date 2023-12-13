@@ -91,8 +91,10 @@ isleap(long int year) {
 }
 
 std::int32_t
-t_time::gmtime(struct tm& out, std::int64_t secs, std::int32_t offset) const {
-    std::int64_t days, rem, y;
+t_time::gmtime(struct tm& out, std::int64_t secs, std::int32_t offset) {
+    std::int64_t days;
+    std::int64_t rem;
+    std::int64_t y;
     const unsigned short int* ip;
 
     days = secs / SECS_PER_DAY;
@@ -112,17 +114,19 @@ t_time::gmtime(struct tm& out, std::int64_t secs, std::int32_t offset) const {
     out.tm_sec = rem % 60;
     /* January 1, 1970 was a Thursday.  */
     out.tm_wday = (4 + days) % 7;
-    if (out.tm_wday < 0)
+    if (out.tm_wday < 0) {
         out.tm_wday += 7;
+    }
     y = 1970;
 
 #define DIV(a, b) ((a) / (b) - ((a) % (b) < 0))
 #define LEAPS_THRU_END_OF(y) (DIV(y, 4) - DIV(y, 100) + DIV(y, 400))
 
-    while (days < 0 || days >= (isleap(y) ? 366 : 365)) {
+    while (days < 0 || days >= (isleap(y) != 0 ? 366 : 365)) {
         /* Guess a corrected year, assuming 365 days per
          * year.  */
-        long int yg = y + days / 365 - (days % 365 < 0);
+        long int yg
+            = y + days / 365 - static_cast<std::int64_t>(days % 365 < 0);
 
         /* Adjust DAYS and Y to match the guessed year.
          */
@@ -138,8 +142,9 @@ t_time::gmtime(struct tm& out, std::int64_t secs, std::int32_t offset) const {
     }
     out.tm_yday = days;
     ip = __mon_yday[isleap(y)];
-    for (y = 11; days < (long int)ip[y]; --y)
+    for (y = 11; days < (long int)ip[y]; --y) {
         continue;
+    }
     days -= ip[y];
     out.tm_mon = y;
     out.tm_mday = days + 1;
@@ -147,27 +152,27 @@ t_time::gmtime(struct tm& out, std::int64_t secs, std::int32_t offset) const {
 }
 
 std::int32_t
-t_time::year(const struct tm& t) const {
+t_time::year(const struct tm& t) {
     return t.tm_year + 1900;
 }
 std::int32_t
-t_time::month(const struct tm& t) const {
+t_time::month(const struct tm& t) {
     return t.tm_mon + 1;
 }
 std::int32_t
-t_time::day(const struct tm& t) const {
+t_time::day(const struct tm& t) {
     return t.tm_mday;
 }
 std::int32_t
-t_time::hours(const struct tm& t) const {
+t_time::hours(const struct tm& t) {
     return t.tm_hour;
 }
 std::int32_t
-t_time::minutes(const struct tm& t) const {
+t_time::minutes(const struct tm& t) {
     return t.tm_min;
 }
 std::int32_t
-t_time::seconds(const struct tm& t) const {
+t_time::seconds(const struct tm& t) {
     return t.tm_sec;
 }
 std::int32_t
@@ -179,8 +184,9 @@ t_time::microseconds() const // component
 
 std::int64_t
 t_time::as_seconds() const {
-    if (m_storage < 0 && m_storage % 1000000)
+    if (m_storage < 0 && ((m_storage % 1000000) != 0)) {
         return m_storage / 1000000 - 1;
+    }
     return m_storage / 1000000;
 }
 
@@ -200,17 +206,17 @@ t_time::str(const struct tm& t) const {
 std::int32_t
 days_before_year(std::int32_t year) {
     std::int32_t y = year - 1;
-    if (y >= 0)
+    if (y >= 0) {
         return y * 365 + y / 4 - y / 100 + y / 400;
-    else {
-        return -366;
     }
+    return -366;
 }
 
 std::int32_t
 days_before_month(std::int32_t year, std::int32_t month) {
-    if (month < 1 || month > 12)
+    if (month < 1 || month > 12) {
         return 0;
+    }
     return __mon_yday[isleap(year)][month - 1];
 }
 
@@ -242,7 +248,7 @@ t_time::operator-=(const t_tdelta& d) {
 
 t_tdelta
 operator-(const t_time& a, const t_time& b) {
-    return t_tdelta(a.m_storage - b.m_storage);
+    return {a.m_storage - b.m_storage};
 }
 
 } // end namespace perspective

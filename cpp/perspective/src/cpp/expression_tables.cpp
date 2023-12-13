@@ -52,7 +52,8 @@ t_expression_tables::get_table() const {
 }
 
 void
-t_expression_tables::set_flattened(std::shared_ptr<t_data_table> flattened) {
+t_expression_tables::set_flattened(
+    const std::shared_ptr<t_data_table>& flattened) {
     t_uindex flattened_num_rows = flattened->size();
     reserve_transitional_table_size(flattened_num_rows);
     set_transitional_table_size(flattened_num_rows);
@@ -66,7 +67,7 @@ t_expression_tables::set_flattened(std::shared_ptr<t_data_table> flattened) {
 
 void
 t_expression_tables::calculate_transitions(
-    std::shared_ptr<t_data_table> existed) {
+    const std::shared_ptr<t_data_table>& existed) {
     const t_schema& schema = m_transitions->get_schema();
     const std::vector<std::string>& column_names = schema.m_columns;
     const t_column& existed_column
@@ -84,7 +85,8 @@ t_expression_tables::calculate_transitions(
                 = m_transitions->get_column(cname);
 
             for (t_uindex ridx = 0; ridx < transition_column->size(); ++ridx) {
-                bool row_existed = existed_column.get_nth<bool>(ridx);
+                bool row_existed
+                    = existed_column.get_nth<bool>(ridx) != nullptr;
 
                 t_tscalar prev_value = prev_column.get_scalar(ridx);
                 t_tscalar curr_value = current_column.get_scalar(ridx);
@@ -126,7 +128,7 @@ t_expression_tables::calculate_transitions(
 }
 
 void
-t_expression_tables::reserve_transitional_table_size(t_uindex size) {
+t_expression_tables::reserve_transitional_table_size(t_uindex size) const {
     m_flattened->reserve(size);
     m_prev->reserve(size);
     m_current->reserve(size);
@@ -135,7 +137,7 @@ t_expression_tables::reserve_transitional_table_size(t_uindex size) {
 }
 
 void
-t_expression_tables::set_transitional_table_size(t_uindex size) {
+t_expression_tables::set_transitional_table_size(t_uindex size) const {
     m_flattened->set_size(size);
     m_prev->set_size(size);
     m_current->set_size(size);
@@ -144,7 +146,7 @@ t_expression_tables::set_transitional_table_size(t_uindex size) {
 }
 
 void
-t_expression_tables::clear_transitional_tables() {
+t_expression_tables::clear_transitional_tables() const {
     m_flattened->clear();
     m_prev->clear();
     m_current->clear();
@@ -153,7 +155,7 @@ t_expression_tables::clear_transitional_tables() {
 }
 
 void
-t_expression_tables::reset() {
+t_expression_tables::reset() const {
     m_master->reset();
     m_flattened->reset();
     m_prev->reset();

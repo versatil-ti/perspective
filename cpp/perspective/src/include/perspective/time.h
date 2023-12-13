@@ -100,15 +100,15 @@ public:
      */
     std::tm get_tm() const;
 
-    std::int32_t gmtime(
-        struct tm& out, std::int64_t secs, std::int32_t offset) const;
+    static std::int32_t gmtime(
+        struct tm& out, std::int64_t secs, std::int32_t offset);
 
-    std::int32_t year(const struct tm& t) const;
-    std::int32_t month(const struct tm& t) const;
-    std::int32_t day(const struct tm& t) const;
-    std::int32_t hours(const struct tm& t) const;
-    std::int32_t minutes(const struct tm& t) const;
-    std::int32_t seconds(const struct tm& t) const;
+    static std::int32_t year(const struct tm& t);
+    static std::int32_t month(const struct tm& t);
+    static std::int32_t day(const struct tm& t);
+    static std::int32_t hours(const struct tm& t);
+    static std::int32_t minutes(const struct tm& t);
+    static std::int32_t seconds(const struct tm& t);
     std::int32_t microseconds() const;
     std::int64_t as_seconds() const;
 

@@ -10,6 +10,7 @@
 // ┃ of the [Apache License 2.0](https://www.apache.org/licenses/LICENSE-2.0). ┃
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
+#include <perspective/tree_context_common.h>
 #include <perspective/first.h>
 #include <perspective/base.h>
 #include <perspective/filter.h>
@@ -22,12 +23,15 @@
 #include <perspective/dense_tree_context.h>
 #include <tsl/hopscotch_set.h>
 
+#include <utility>
+
 namespace perspective {
 
 void
-notify_sparse_tree_common(std::shared_ptr<t_data_table> strands,
-    std::shared_ptr<t_data_table> strand_deltas, std::shared_ptr<t_stree> tree,
-    std::shared_ptr<t_traversal> traversal, bool process_traversal,
+notify_sparse_tree_common(const std::shared_ptr<t_data_table>& strands,
+    const std::shared_ptr<t_data_table>& strand_deltas,
+    const std::shared_ptr<t_stree>& tree,
+    const std::shared_ptr<t_traversal>& traversal, bool process_traversal,
     const std::vector<t_aggspec>& aggregates,
     const std::vector<std::pair<std::string, std::string>>& tree_sortby,
     const std::vector<t_sortspec>& ctx_sortby, const t_gstate& gstate,
@@ -64,11 +68,13 @@ notify_sparse_tree_common(std::shared_ptr<t_data_table> strands,
     auto zero_strands = tree->zero_strands();
 
     t_uindex t_osize = process_traversal ? traversal->size() : 0;
-    if (process_traversal)
+    if (process_traversal) {
         traversal->drop_tree_indices(zero_strands);
+    }
     t_uindex t_nsize = process_traversal ? traversal->size() : 0;
-    if (t_osize != t_nsize)
+    if (t_osize != t_nsize) {
         tree->set_has_deltas(true);
+    }
 
     auto non_zero_ids = tree->non_zero_ids(zero_strands);
     auto non_zero_leaves = tree->non_zero_leaves(zero_strands);
@@ -103,7 +109,8 @@ notify_sparse_tree_common(std::shared_ptr<t_data_table> strands,
             return a.m_path < b.m_path;
         });
 
-    if (!leaf_paths.empty() && traversal.get() && traversal->size() == 1) {
+    if (!leaf_paths.empty() && (traversal != nullptr)
+        && traversal->size() == 1) {
         if (traversal->get_node(0).m_expanded) {
             traversal->populate_root_children(tree);
         }
@@ -135,8 +142,8 @@ notify_sparse_tree_common(std::shared_ptr<t_data_table> strands,
 }
 
 void
-notify_sparse_tree(std::shared_ptr<t_stree> tree,
-    std::shared_ptr<t_traversal> traversal, bool process_traversal,
+notify_sparse_tree(const std::shared_ptr<t_stree>& tree,
+    const std::shared_ptr<t_traversal>& traversal, bool process_traversal,
     const std::vector<t_aggspec>& aggregates,
     const std::vector<std::pair<std::string, std::string>>& tree_sortby,
     const std::vector<t_sortspec>& ctx_sortby, const t_data_table& flattened,
@@ -150,14 +157,14 @@ notify_sparse_tree(std::shared_ptr<t_stree> tree,
 
     auto strands = strand_values.first;
     auto strand_deltas = strand_values.second;
-    notify_sparse_tree_common(strands, strand_deltas, tree, traversal,
-        process_traversal, aggregates, tree_sortby, ctx_sortby, gstate,
-        expression_master_table);
+    notify_sparse_tree_common(strands, strand_deltas, tree,
+        std::move(traversal), process_traversal, aggregates, tree_sortby,
+        ctx_sortby, gstate, expression_master_table);
 }
 
 void
-notify_sparse_tree(std::shared_ptr<t_stree> tree,
-    std::shared_ptr<t_traversal> traversal, bool process_traversal,
+notify_sparse_tree(const std::shared_ptr<t_stree>& tree,
+    const std::shared_ptr<t_traversal>& traversal, bool process_traversal,
     const std::vector<t_aggspec>& aggregates,
     const std::vector<std::pair<std::string, std::string>>& tree_sortby,
     const std::vector<t_sortspec>& ctx_sortby, const t_data_table& flattened,
@@ -168,29 +175,29 @@ notify_sparse_tree(std::shared_ptr<t_stree> tree,
 
     auto strands = strand_values.first;
     auto strand_deltas = strand_values.second;
-    notify_sparse_tree_common(strands, strand_deltas, tree, traversal,
-        process_traversal, aggregates, tree_sortby, ctx_sortby, gstate,
-        expression_master_table);
+    notify_sparse_tree_common(strands, strand_deltas, tree,
+        std::move(traversal), process_traversal, aggregates, tree_sortby,
+        ctx_sortby, gstate, expression_master_table);
 }
 
 std::vector<t_path>
-ctx_get_expansion_state(std::shared_ptr<const t_stree> tree,
-    std::shared_ptr<const t_traversal> traversal) {
+ctx_get_expansion_state(const std::shared_ptr<const t_stree>& tree,
+    const std::shared_ptr<const t_traversal>& traversal) {
     std::vector<t_path> paths;
     std::vector<t_index> expanded;
     traversal->get_expanded(expanded);
 
-    for (int i = 0, loop_end = expanded.size(); i < loop_end; i++) {
+    for (int i : expanded) {
         std::vector<t_tscalar> path;
-        tree->get_path(expanded[i], path);
-        paths.push_back(t_path(path));
+        tree->get_path(i, path);
+        paths.emplace_back(path);
     }
     return paths;
 }
 
 std::vector<t_tscalar>
-ctx_get_path(std::shared_ptr<const t_stree> tree,
-    std::shared_ptr<const t_traversal> traversal, t_index idx) {
+ctx_get_path(const std::shared_ptr<const t_stree>& tree,
+    const std::shared_ptr<const t_traversal>& traversal, t_index idx) {
     if (idx < 0 || idx >= t_index(traversal->size())) {
         std::vector<t_tscalar> rval;
         return rval;

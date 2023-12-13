@@ -14,6 +14,10 @@
 #include <perspective/mask.h>
 #include <perspective/raii.h>
 
+#include <utility>
+
+#include <utility>
+
 namespace perspective {
 
 t_mask::t_mask() { LOG_CONSTRUCTOR("t_mask"); }
@@ -115,7 +119,7 @@ t_mask_iterator::has_next() const {
 }
 
 t_mask_iterator::t_mask_iterator(t_maskcsptr m)
-    : m_mask(m)
+    : m_mask(std::move(std::move(m)))
     , m_pos(m_mask->find_first()) {
     LOG_CONSTRUCTOR("t_mask_iterator");
 }

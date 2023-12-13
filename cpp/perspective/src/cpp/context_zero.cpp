@@ -19,9 +19,13 @@
 
 #include <perspective/filter_utils.h>
 
+#include <cstddef>
+
+#include <utility>
+
 namespace perspective {
 
-t_ctx0::t_ctx0() {}
+t_ctx0::t_ctx0() = default;
 
 t_ctx0::t_ctx0(const t_schema& schema, const t_config& config)
     : t_ctxbase<t_ctx0>(schema, config)
@@ -49,8 +53,9 @@ t_ctx0::init() {
  */
 void
 t_ctx0::step_begin() {
-    if (!m_init)
+    if (!m_init) {
         return;
+    }
 
     m_deltas = std::make_shared<t_zcdeltas>();
     m_delta_pkeys.clear();
@@ -147,7 +152,7 @@ t_ctx0::notify(const t_data_table& flattened, const t_data_table& delta,
             // add the pkey for row delta
             add_delta_pkey(pkey);
         }
-        m_has_delta = m_deltas->size() > 0 || m_delta_pkeys.size() > 0
+        m_has_delta = !m_deltas->empty() || !m_delta_pkeys.empty()
             || delete_encountered;
 
         return;
@@ -184,8 +189,8 @@ t_ctx0::notify(const t_data_table& flattened, const t_data_table& delta,
         add_delta_pkey(pkey);
     }
 
-    m_has_delta = m_deltas->size() > 0 || m_delta_pkeys.size() > 0
-        || delete_encountered;
+    m_has_delta
+        = !m_deltas->empty() || !m_delta_pkeys.empty() || delete_encountered;
 }
 
 /**
@@ -308,7 +313,7 @@ t_ctx0::get_data(t_index start_row, t_index end_row, t_index start_col,
 
     t_index nrows = ext.m_erow - ext.m_srow;
     t_index stride = ext.m_ecol - ext.m_scol;
-    std::vector<t_tscalar> values(nrows * stride);
+    std::vector<t_tscalar> values(static_cast<std::size_t>(nrows) * stride);
 
     std::vector<t_tscalar> pkeys
         = m_traversal->get_pkeys(ext.m_srow, ext.m_erow);
@@ -323,8 +328,9 @@ t_ctx0::get_data(t_index start_row, t_index end_row, t_index start_col,
             auto v = out_data[ridx - ext.m_srow];
 
             // todo: fix null handling
-            if (!v.is_valid())
+            if (!v.is_valid()) {
                 v.set(none);
+            }
 
             values[(ridx - ext.m_srow) * stride + (cidx - ext.m_scol)] = v;
         }
@@ -355,8 +361,9 @@ t_ctx0::get_data(const std::vector<t_uindex>& rows) const {
         for (t_uindex ridx = 0; ridx < rows.size(); ++ridx) {
             auto v = out_data[ridx];
 
-            if (!v.is_valid())
+            if (!v.is_valid()) {
                 v.set(none);
+            }
 
             values[(ridx)*stride + (cidx)] = v;
         }
@@ -372,8 +379,9 @@ t_ctx0::sort_by() {
 
 void
 t_ctx0::sort_by(const std::vector<t_sortspec>& sortby) {
-    if (sortby.empty())
+    if (sortby.empty()) {
         return;
+    }
     m_traversal->sort_by(
         *m_gstate, *(m_expression_tables->m_master), m_config, sortby);
 }
@@ -386,10 +394,11 @@ t_ctx0::reset_sortby() {
 
 t_tscalar
 t_ctx0::get_column_name(t_index idx) {
-    std::string empty("");
+    std::string empty;
 
-    if (idx >= get_column_count())
+    if (idx >= get_column_count()) {
         return m_symtable.get_interned_tscalar(empty.c_str());
+    }
 
     return m_symtable.get_interned_tscalar(m_config.col_at(idx).c_str());
 }
@@ -452,12 +461,13 @@ t_ctx0::reset(bool reset_expressions) {
     m_deltas = std::make_shared<t_zcdeltas>();
     m_has_delta = false;
 
-    if (reset_expressions)
+    if (reset_expressions) {
         m_expression_tables->reset();
+    }
 }
 
 t_index
-t_ctx0::sidedness() const {
+t_ctx0::sidedness() {
     return 0;
 }
 
@@ -505,9 +515,9 @@ t_ctx0::calc_step_delta(const t_data_table& flattened, const t_data_table& prev,
         const t_column* ccol = curr.get_const_column(name).get();
 
         for (t_uindex ridx = 0; ridx < nrows; ++ridx) {
-            const std::uint8_t* trans_ = tcol->get_nth<std::uint8_t>(ridx);
+            const auto* trans_ = tcol->get_nth<std::uint8_t>(ridx);
             std::uint8_t trans = *trans_;
-            t_value_transition tr = static_cast<t_value_transition>(trans);
+            auto tr = static_cast<t_value_transition>(trans);
 
             switch (tr) {
                 case VALUE_TRANSITION_NVEQ_FT:
@@ -570,28 +580,24 @@ t_ctx0::get_cell_delta(t_index bidx, t_index eidx) const {
             }
         }
     } else {
-        for (t_zcdeltas::index<by_zc_pkey_colidx>::type::iterator iter
-             = m_deltas->get<by_zc_pkey_colidx>().begin();
-             iter != m_deltas->get<by_zc_pkey_colidx>().end(); ++iter) {
-            if (prev_pkey != iter->m_pkey) {
-                pkeys.insert(iter->m_pkey);
-                prev_pkey = iter->m_pkey;
+        for (const auto& iter : m_deltas->get<by_zc_pkey_colidx>()) {
+            if (prev_pkey != iter.m_pkey) {
+                pkeys.insert(iter.m_pkey);
+                prev_pkey = iter.m_pkey;
             }
         }
 
         tsl::hopscotch_map<t_tscalar, t_index> r_indices;
         m_traversal->get_row_indices(pkeys, r_indices);
 
-        for (t_zcdeltas::index<by_zc_pkey_colidx>::type::iterator iter
-             = m_deltas->get<by_zc_pkey_colidx>().begin();
-             iter != m_deltas->get<by_zc_pkey_colidx>().end(); ++iter) {
-            t_index row = r_indices[iter->m_pkey];
+        for (const auto& iter : m_deltas->get<by_zc_pkey_colidx>()) {
+            t_index row = r_indices[iter.m_pkey];
             if (bidx <= row && row <= eidx) {
                 t_cellupd cellupd;
                 cellupd.row = row;
-                cellupd.column = iter->m_colidx;
-                cellupd.old_value = iter->m_old_value;
-                cellupd.new_value = iter->m_new_value;
+                cellupd.column = iter.m_colidx;
+                cellupd.old_value = iter.m_old_value;
+                cellupd.new_value = iter.m_new_value;
                 rval.push_back(cellupd);
             }
         }
@@ -619,7 +625,7 @@ t_ctx0::get_step_delta(t_index bidx, t_index eidx) {
 }
 
 void
-t_ctx0::compute_expressions(std::shared_ptr<t_data_table> master,
+t_ctx0::compute_expressions(const std::shared_ptr<t_data_table>& master,
     const t_gstate::t_mapping& pkey_map, t_expression_vocab& expression_vocab,
     t_regex_mapping& regex_mapping) {
     // Clear the transitional expression tables on the context so they are
@@ -644,12 +650,13 @@ t_ctx0::compute_expressions(std::shared_ptr<t_data_table> master,
 
 // TODO rewrite const&
 void
-t_ctx0::compute_expressions(std::shared_ptr<t_data_table> master,
+t_ctx0::compute_expressions(const std::shared_ptr<t_data_table>& master,
     const t_gstate::t_mapping& pkey_map,
-    std::shared_ptr<t_data_table> flattened,
-    std::shared_ptr<t_data_table> delta, std::shared_ptr<t_data_table> prev,
-    std::shared_ptr<t_data_table> current,
-    std::shared_ptr<t_data_table> transitions,
+    const std::shared_ptr<t_data_table>& flattened,
+    const std::shared_ptr<t_data_table>& delta,
+    const std::shared_ptr<t_data_table>& prev,
+    const std::shared_ptr<t_data_table>& current,
+    const std::shared_ptr<t_data_table>& transitions,
     std::shared_ptr<t_data_table> existed, t_expression_vocab& expression_vocab,
     t_regex_mapping& regex_mapping) {
     // Clear the tables so they are ready for this round of updates
@@ -690,7 +697,7 @@ t_ctx0::compute_expressions(std::shared_ptr<t_data_table> master,
     }
 
     // Calculate the transitions now that the intermediate tables are computed
-    m_expression_tables->calculate_transitions(existed);
+    m_expression_tables->calculate_transitions(std::move(existed));
 }
 
 bool
@@ -771,7 +778,7 @@ t_ctx0::set_deltas_enabled(bool enabled_state) {
 
 std::vector<t_stree*>
 t_ctx0::get_trees() {
-    return std::vector<t_stree*>();
+    return {};
 }
 
 bool
@@ -781,13 +788,15 @@ t_ctx0::has_deltas() const {
 
 t_dtype
 t_ctx0::get_column_dtype(t_uindex idx) const {
-    if (idx >= static_cast<t_uindex>(get_column_count()))
+    if (idx >= static_cast<t_uindex>(get_column_count())) {
         return DTYPE_NONE;
+    }
 
     auto cname = m_config.col_at(idx);
 
-    if (!m_schema.has_column(cname))
+    if (!m_schema.has_column(cname)) {
         return DTYPE_NONE;
+    }
 
     return m_schema.get_dtype(cname);
 }
@@ -800,7 +809,7 @@ t_ctx0::unity_get_row_data(t_uindex idx) const {
 std::vector<t_tscalar>
 t_ctx0::unity_get_column_data(t_uindex idx) const {
     PSP_COMPLAIN_AND_ABORT("Not implemented");
-    return std::vector<t_tscalar>();
+    return {};
 }
 
 std::vector<t_tscalar>
@@ -810,7 +819,7 @@ t_ctx0::unity_get_row_path(t_uindex idx) const {
 
 std::vector<t_tscalar>
 t_ctx0::unity_get_column_path(t_uindex idx) const {
-    return std::vector<t_tscalar>();
+    return {};
 }
 
 t_uindex

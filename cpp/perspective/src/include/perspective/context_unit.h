@@ -83,9 +83,9 @@ public:
 
     void reset();
 
-    t_index sidedness() const;
+    static t_index sidedness();
 
-    bool get_deltas_enabled() const;
+    static bool get_deltas_enabled();
     void set_deltas_enabled(bool enabled_state);
 
     std::vector<t_tscalar> get_pkeys(
@@ -121,18 +121,18 @@ public:
 
     // Unity api
     std::vector<t_tscalar> unity_get_row_data(t_uindex idx) const;
-    std::vector<t_tscalar> unity_get_row_path(t_uindex idx) const;
-    std::vector<t_tscalar> unity_get_column_path(t_uindex idx) const;
-    t_uindex unity_get_row_depth(t_uindex ridx) const;
-    t_uindex unity_get_column_depth(t_uindex cidx) const;
+    static std::vector<t_tscalar> unity_get_row_path(t_uindex idx);
+    static std::vector<t_tscalar> unity_get_column_path(t_uindex idx);
+    static t_uindex unity_get_row_depth(t_uindex ridx);
+    static t_uindex unity_get_column_depth(t_uindex cidx);
     std::vector<std::string> unity_get_column_names() const;
     std::vector<std::string> unity_get_column_display_names() const;
     std::string unity_get_column_name(t_uindex idx) const;
     std::string unity_get_column_display_name(t_uindex idx) const;
     t_uindex unity_get_column_count() const;
     t_uindex unity_get_row_count() const;
-    bool unity_get_row_expanded(t_uindex idx) const;
-    bool unity_get_column_expanded(t_uindex idx) const;
+    static bool unity_get_row_expanded(t_uindex idx);
+    static bool unity_get_column_expanded(t_uindex idx);
 
 protected:
     void add_delta_pkey(t_tscalar pkey);

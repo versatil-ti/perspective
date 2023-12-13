@@ -12,6 +12,8 @@
 
 #include <perspective/table.h>
 
+#include <utility>
+
 // Give each Table a unique ID so that operations on it map back correctly
 static perspective::t_uindex GLOBAL_TABLE_ID = 0;
 
@@ -19,15 +21,15 @@ namespace perspective {
 Table::Table(std::shared_ptr<t_pool> pool,
     const std::vector<std::string>& column_names,
     const std::vector<t_dtype>& data_types, std::uint32_t limit,
-    const std::string& index)
+    std::string index)
     : m_init(false)
     , m_id(GLOBAL_TABLE_ID++)
-    , m_pool(pool)
+    , m_pool(std::move(pool))
     , m_column_names(column_names)
     , m_data_types(data_types)
     , m_offset(0)
     , m_limit(limit)
-    , m_index(index)
+    , m_index(std::move(index))
     , m_gnode_set(false) {
     validate_columns(m_column_names);
 }
@@ -147,20 +149,20 @@ Table::set_gnode(std::shared_ptr<t_gnode> gnode) {
 }
 
 void
-Table::unregister_gnode(t_uindex id) {
+Table::unregister_gnode(t_uindex id) const {
     PSP_VERBOSE_ASSERT(m_init, "touching uninited object");
     m_pool->unregister_gnode(id);
 }
 
 void
-Table::reset_gnode(t_uindex id) {
+Table::reset_gnode(t_uindex id) const {
     PSP_VERBOSE_ASSERT(m_init, "touching uninited object");
     t_gnode* gnode = m_pool->get_gnode(id);
     gnode->reset();
 }
 
 t_uindex
-Table::make_port() {
+Table::make_port() const {
     PSP_VERBOSE_ASSERT(m_init, "touching uninited object");
     PSP_VERBOSE_ASSERT(
         m_gnode_set, "Cannot make input port on a gnode that does not exist.");
@@ -168,7 +170,7 @@ Table::make_port() {
 }
 
 void
-Table::remove_port(t_uindex port_id) {
+Table::remove_port(t_uindex port_id) const {
     PSP_VERBOSE_ASSERT(m_init, "touching uninited object");
     PSP_VERBOSE_ASSERT(m_gnode_set,
         "Cannot remove input port on a gnode that does not exist.");

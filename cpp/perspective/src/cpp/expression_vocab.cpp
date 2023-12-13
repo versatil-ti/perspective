@@ -12,12 +12,13 @@
 
 #include <perspective/expression_vocab.h>
 
+#include <cstddef>
+
 namespace perspective {
 
-t_expression_vocab::t_expression_vocab()
-    : m_empty_string("") {
+t_expression_vocab::t_expression_vocab() {
     // Allocate 4096 bytes per page
-    m_max_vocab_size = 64 * 64;
+    m_max_vocab_size = static_cast<std::size_t>(64) * 64;
 
     // Always start with one vocab
     allocate_new_vocab();
@@ -55,7 +56,7 @@ t_expression_vocab::get_empty_string() const {
 
 void
 t_expression_vocab::pprint() const {
-    for (auto& vocab : m_vocabs) {
+    for (const auto& vocab : m_vocabs) {
         vocab.pprint_vocabulary();
     }
 }

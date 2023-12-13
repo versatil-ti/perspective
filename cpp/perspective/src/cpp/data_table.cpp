@@ -21,6 +21,8 @@
 #include <perspective/utils.h>
 
 #include <sstream>
+#include <utility>
+#include <utility>
 namespace perspective {
 
 void
@@ -37,10 +39,8 @@ t_data_table::set_capacity(t_uindex idx) {
 #endif
 }
 
-t_data_table::t_data_table(const t_schema& s, t_uindex init_cap)
-    : m_name("")
-    , m_dirname("")
-    , m_schema(s)
+t_data_table::t_data_table(t_schema s, t_uindex init_cap)
+    : m_schema(std::move(s))
     , m_size(0)
     , m_backing_store(BACKING_STORE_MEMORY)
     , m_init(false) {
@@ -49,11 +49,11 @@ t_data_table::t_data_table(const t_schema& s, t_uindex init_cap)
     set_capacity(init_cap);
 }
 
-t_data_table::t_data_table(const std::string& name, const std::string& dirname,
-    const t_schema& s, t_uindex init_cap, t_backing_store backing_store)
-    : m_name(name)
-    , m_dirname(dirname)
-    , m_schema(s)
+t_data_table::t_data_table(std::string name, std::string dirname, t_schema s,
+    t_uindex init_cap, t_backing_store backing_store)
+    : m_name(std::move(name))
+    , m_dirname(std::move(dirname))
+    , m_schema(std::move(s))
     , m_size(0)
     , m_backing_store(backing_store)
     , m_init(false) {
@@ -65,9 +65,7 @@ t_data_table::t_data_table(const std::string& name, const std::string& dirname,
 // THIS CONSTRUCTOR INITS. Do not use in production.
 t_data_table::t_data_table(
     const t_schema& s, const std::vector<std::vector<t_tscalar>>& v)
-    : m_name("")
-    , m_dirname("")
-    , m_schema(s)
+    : m_schema(s)
     , m_size(0)
     , m_backing_store(BACKING_STORE_MEMORY)
     , m_init(false) {
@@ -84,7 +82,7 @@ t_data_table::t_data_table(
     extend(v.size());
     std::vector<t_column*> cols = get_columns();
     for (t_uindex cidx = 0; cidx < ncols; ++cidx) {
-        auto col = cols[cidx];
+        auto* col = cols[cidx];
         for (t_uindex ridx = 0, loop_end = v.size(); ridx < loop_end; ++ridx) {
             col->set_scalar(ridx, v[ridx][cidx]);
         }
@@ -165,9 +163,8 @@ t_data_table::get_column_safe(const std::string& colname) {
     t_uindex idx = m_schema.get_colidx_safe(colname);
     if (idx == -1) {
         return nullptr;
-    } else {
-        return m_columns[idx];
     }
+    return m_columns[idx];
 }
 
 std::shared_ptr<t_column>
@@ -193,9 +190,8 @@ t_data_table::get_column_safe(const std::string& colname) const {
     t_uindex idx = m_schema.get_colidx_safe(colname);
     if (idx == -1) {
         return nullptr;
-    } else {
-        return m_columns[idx];
     }
+    return m_columns[idx];
 }
 
 std::shared_ptr<const t_column>
@@ -213,9 +209,8 @@ t_data_table::get_const_column_safe(const std::string& colname) const {
     t_uindex idx = m_schema.get_colidx_safe(colname);
     if (idx == -1) {
         return nullptr;
-    } else {
-        return m_columns[idx];
     }
+    return m_columns[idx];
 }
 
 std::shared_ptr<const t_column>
@@ -231,9 +226,8 @@ t_data_table::get_const_column_safe(t_uindex idx) const {
     PSP_VERBOSE_ASSERT(m_init, "touching uninited object");
     if (idx == -1) {
         return nullptr;
-    } else {
-        return m_columns[idx];
     }
+    return m_columns[idx];
 }
 
 std::vector<t_column*>
@@ -357,10 +351,11 @@ t_data_table::pprint(t_uindex nrows, std::ostream* os) const {
     PSP_TRACE_SENTINEL();
     PSP_VERBOSE_ASSERT(m_init, "touching uninited object");
 
-    if (!os)
+    if (os == nullptr) {
         os = &std::cout;
+    }
 
-    t_uindex nrows_ = nrows ? nrows : num_rows();
+    t_uindex nrows_ = nrows != 0u ? nrows : num_rows();
     nrows_ = std::min(nrows_, num_rows());
 
     t_uindex ncols = num_columns();
@@ -458,8 +453,8 @@ void
 t_data_table::clear() {
     PSP_TRACE_SENTINEL();
     PSP_VERBOSE_ASSERT(m_init, "touching uninited object");
-    for (t_uindex idx = 0, loop_end = m_columns.size(); idx < loop_end; ++idx) {
-        m_columns[idx]->clear();
+    for (const auto& m_column : m_columns) {
+        m_column->clear();
     }
     m_size = 0;
 }
@@ -467,7 +462,7 @@ t_data_table::clear() {
 t_mask
 t_data_table::filter_cpp(
     t_filter_op combiner, const std::vector<t_fterm>& fterms_) const {
-    auto self = const_cast<t_data_table*>(this);
+    auto* self = const_cast<t_data_table*>(this);
     auto fterms = fterms_;
 
     t_mask mask(size());
@@ -496,8 +491,9 @@ t_data_table::filter_cpp(
                 bool pass = true;
 
                 for (t_uindex cidx = 0; cidx < fterm_size; ++cidx) {
-                    if (!pass)
+                    if (!pass) {
                         break;
+                    }
 
                     const auto& ft = fterms[cidx];
                     bool tval;
@@ -553,8 +549,7 @@ t_data_table::clone_(const t_mask& mask) const {
     PSP_VERBOSE_ASSERT(m_init, "touching uninited object");
     t_schema schema = m_schema;
 
-    t_data_table* rval
-        = new t_data_table("", "", schema, 5, BACKING_STORE_MEMORY);
+    auto* rval = new t_data_table("", "", schema, 5, BACKING_STORE_MEMORY);
     rval->init();
 
     for (const auto& cname : schema.m_columns) {
@@ -569,7 +564,7 @@ std::shared_ptr<t_data_table>
 t_data_table::clone(const t_mask& mask) const {
     PSP_TRACE_SENTINEL();
     PSP_VERBOSE_ASSERT(m_init, "touching uninited object");
-    auto tbl = clone_(mask);
+    auto* tbl = clone_(mask);
     return std::shared_ptr<t_data_table>(tbl);
 }
 
@@ -614,7 +609,7 @@ t_data_table::borrow(const std::vector<std::string>& columns) const {
 }
 
 std::shared_ptr<t_data_table>
-t_data_table::join(std::shared_ptr<t_data_table> other_table) const {
+t_data_table::join(const std::shared_ptr<t_data_table>& other_table) const {
     PSP_TRACE_SENTINEL();
     PSP_VERBOSE_ASSERT(m_init, "touching uninited object");
 
@@ -735,17 +730,17 @@ t_data_table::promote_column(const std::string& name, t_dtype new_dtype,
         for (auto i = 0; i < iter_limit; ++i) {
             switch (new_dtype) {
                 case DTYPE_INT64: {
-                    std::int32_t* val = current_col->get_nth<std::int32_t>(i);
-                    std::int64_t fval = static_cast<std::int64_t>(*val);
+                    auto* val = current_col->get_nth<std::int32_t>(i);
+                    auto fval = static_cast<std::int64_t>(*val);
                     promoted_col->set_nth(i, fval);
                 } break;
                 case DTYPE_FLOAT64: {
-                    std::int32_t* val = current_col->get_nth<std::int32_t>(i);
-                    double fval = static_cast<double>(*val);
+                    auto* val = current_col->get_nth<std::int32_t>(i);
+                    auto fval = static_cast<double>(*val);
                     promoted_col->set_nth(i, fval);
                 } break;
                 case DTYPE_STR: {
-                    std::int32_t* val = current_col->get_nth<std::int32_t>(i);
+                    auto* val = current_col->get_nth<std::int32_t>(i);
                     std::string fval = std::to_string(*val);
                     promoted_col->set_nth(i, fval);
                 } break;
@@ -764,14 +759,14 @@ t_data_table::promote_column(const std::string& name, t_dtype new_dtype,
 
 void
 t_data_table::set_column(t_uindex idx, std::shared_ptr<t_column> col) {
-    m_columns[idx] = col;
+    m_columns[idx] = std::move(col);
 }
 
 void
 t_data_table::set_column(
     const std::string& name, std::shared_ptr<t_column> col) {
     t_uindex idx = m_schema.get_colidx(name);
-    set_column(idx, col);
+    set_column(idx, std::move(col));
 }
 
 t_column*
@@ -783,7 +778,7 @@ t_data_table::clone_column(
     if (!m_schema.has_column(existing_col)) {
         std::cout << "Cannot clone non existing column: " << existing_col
                   << std::endl;
-        return 0;
+        return nullptr;
     }
 
     t_uindex idx = m_schema.get_colidx(existing_col);
@@ -805,12 +800,12 @@ t_data_table::repr() const {
 
 void
 t_data_table::verify() const {
-    for (auto& c : m_columns) {
+    for (const auto& c : m_columns) {
         c->verify_size(m_capacity);
         c->verify();
     }
 
-    for (auto& c : m_columns) {
+    for (const auto& c : m_columns) {
         PSP_VERBOSE_ASSERT(
             c, || (size() == c->size()), "Ragged table encountered");
     }
@@ -818,11 +813,11 @@ t_data_table::verify() const {
 
 void
 t_data_table::reset() {
-    for (t_uindex idx = 0, loop_end = m_columns.size(); idx < loop_end; ++idx) {
-        if (m_columns[idx]->get_dtype() == DTYPE_OBJECT) {
-            m_columns[idx]->clear_objects();
+    for (const auto& m_column : m_columns) {
+        if (m_column->get_dtype() == DTYPE_OBJECT) {
+            m_column->clear_objects();
         }
-        m_columns[idx]->clear();
+        m_column->clear();
     }
     m_size = 0;
     m_capacity = DEFAULT_EMPTY_CAPACITY;
@@ -846,7 +841,7 @@ t_data_table::get_scalvec() const {
 std::shared_ptr<t_column>
 t_data_table::operator[](const std::string& name) {
     if (!m_schema.has_column(name)) {
-        return std::shared_ptr<t_column>(nullptr);
+        return {nullptr};
     }
     return m_columns[m_schema.get_colidx(name)];
 }

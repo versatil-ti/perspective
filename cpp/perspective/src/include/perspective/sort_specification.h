@@ -27,8 +27,8 @@ enum t_sortspec_type {
 
 struct PERSPECTIVE_EXPORT t_sortspec {
     t_sortspec();
-    t_sortspec(const std::string& column_name, t_index agg_index,
-        t_sorttype sort_type);
+    t_sortspec(
+        std::string column_name, t_index agg_index, t_sorttype sort_type);
     t_sortspec(t_index agg_index, t_sorttype sort_type);
     t_sortspec(const std::vector<t_tscalar>& path, t_index agg_index,
         t_sorttype sort_type);

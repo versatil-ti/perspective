@@ -13,10 +13,12 @@
 #include <perspective/first.h>
 #include <perspective/port.h>
 
+#include <utility>
+
 namespace perspective {
 
-t_port::t_port(t_port_mode mode, const t_schema& schema)
-    : m_schema(schema)
+t_port::t_port(t_port_mode mode, t_schema schema)
+    : m_schema(std::move(schema))
     , m_init(false)
     , m_table(nullptr)
     , m_prevsize(0) {
@@ -42,12 +44,12 @@ t_port::get_table() {
 void
 t_port::set_table(std::shared_ptr<t_data_table> table) {
     m_table = nullptr;
-    m_table = table;
+    m_table = std::move(table);
 }
 
 void
-t_port::send(std::shared_ptr<const t_data_table> table) {
-    m_table->append(*table.get());
+t_port::send(const std::shared_ptr<const t_data_table>& table) {
+    m_table->append(*table);
 }
 
 void
@@ -64,8 +66,9 @@ void
 t_port::release()
 
 {
-    if (!m_table.get())
+    if (m_table == nullptr) {
         return;
+    }
 
     t_uindex size = m_table->size();
 
@@ -81,8 +84,9 @@ void
 t_port::release_or_clear()
 
 {
-    if (!m_table.get())
+    if (m_table == nullptr) {
         return;
+    }
 
     t_uindex size = m_table->size();
 
@@ -97,8 +101,9 @@ t_port::release_or_clear()
 
 void
 t_port::clear() {
-    if (!m_table.get())
+    if (m_table == nullptr) {
         return;
+    }
 
     m_table->clear();
 }

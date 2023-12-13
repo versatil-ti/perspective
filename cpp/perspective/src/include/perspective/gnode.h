@@ -93,7 +93,7 @@ public:
      * @param input_schema
      * @param output_schema
      */
-    t_gnode(const t_schema& input_schema, const t_schema& output_schema);
+    t_gnode(t_schema input_schema, t_schema output_schema);
     ~t_gnode();
 
     void init();
@@ -200,12 +200,15 @@ public:
 
     // Gnode will steal a reference to the context
     void register_context(
-        const std::string& name, std::shared_ptr<t_ctxunit> ctx);
-    void register_context(const std::string& name, std::shared_ptr<t_ctx0> ctx);
-    void register_context(const std::string& name, std::shared_ptr<t_ctx1> ctx);
-    void register_context(const std::string& name, std::shared_ptr<t_ctx2> ctx);
+        const std::string& name, const std::shared_ptr<t_ctxunit>& ctx);
     void register_context(
-        const std::string& name, std::shared_ptr<t_ctx_grouped_pkey> ctx);
+        const std::string& name, const std::shared_ptr<t_ctx0>& ctx);
+    void register_context(
+        const std::string& name, const std::shared_ptr<t_ctx1>& ctx);
+    void register_context(
+        const std::string& name, const std::shared_ptr<t_ctx2>& ctx);
+    void register_context(const std::string& name,
+        const std::shared_ptr<t_ctx_grouped_pkey>& ctx);
 
     void pprint() const;
     std::string repr() const;
@@ -270,7 +273,7 @@ protected:
      *
      * @param process_state
      */
-    t_mask _process_mask_existed_rows(t_process_state& process_state);
+    static t_mask _process_mask_existed_rows(t_process_state& process_state);
 
     /**
      * @brief Given a flattened column, the master column from `m_gstate`, and
@@ -304,9 +307,9 @@ protected:
      * @param prev_pkey_eq
      * @return t_value_transition
      */
-    t_value_transition calc_transition(bool prev_existed, bool row_pre_existed,
-        bool exists, bool prev_valid, bool cur_valid, bool prev_cur_eq,
-        bool prev_pkey_eq);
+    static t_value_transition calc_transition(bool prev_existed,
+        bool row_pre_existed, bool exists, bool prev_valid, bool cur_valid,
+        bool prev_cur_eq, bool prev_pkey_eq);
 
     /******************************************************************************
      *
@@ -318,15 +321,16 @@ protected:
      * flattened table. This method is called on the first update applied
      * on an empty gstate master table.
      */
-    void _compute_expressions(std::shared_ptr<t_data_table> flattened_masked);
+    void _compute_expressions(
+        const std::shared_ptr<t_data_table>& flattened_masked);
 
     /**
      * @brief Compute all expressions on each registered context using all
      * data and transition tables. This method is called on all subsequent
      * updates applied after the first update.
      */
-    void _compute_expressions(std::shared_ptr<t_data_table> master,
-        std::shared_ptr<t_data_table> flattened);
+    void _compute_expressions(const std::shared_ptr<t_data_table>& master,
+        const std::shared_ptr<t_data_table>& flattened);
 
 private:
     /**

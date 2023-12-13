@@ -15,17 +15,18 @@
 #include <perspective/aggspec.h>
 #include <perspective/base.h>
 #include <sstream>
+#include <utility>
 
 namespace perspective {
 
 t_col_name_type::t_col_name_type()
     : m_type(DTYPE_NONE) {}
 
-t_col_name_type::t_col_name_type(const std::string& name, t_dtype type)
-    : m_name(name)
+t_col_name_type::t_col_name_type(std::string name, t_dtype type)
+    : m_name(std::move(name))
     , m_type(type) {}
 
-t_aggspec::t_aggspec() {}
+t_aggspec::t_aggspec() = default;
 
 t_aggspec::t_aggspec(const std::string& name, t_aggtype agg,
     const std::vector<t_dep>& dependencies)
@@ -45,33 +46,33 @@ t_aggspec::t_aggspec(t_aggtype agg, const std::string& dep)
     : m_agg(agg)
     , m_dependencies(std::vector<t_dep>{t_dep(dep, DEPTYPE_COLUMN)}) {}
 
-t_aggspec::t_aggspec(const std::string& name, const std::string& disp_name,
-    t_aggtype agg, const std::vector<t_dep>& dependencies)
-    : m_name(name)
-    , m_disp_name(disp_name)
+t_aggspec::t_aggspec(std::string name, std::string disp_name, t_aggtype agg,
+    const std::vector<t_dep>& dependencies)
+    : m_name(std::move(name))
+    , m_disp_name(std::move(disp_name))
     , m_agg(agg)
     , m_dependencies(dependencies) {}
 
-t_aggspec::t_aggspec(const std::string& name, const std::string& disp_name,
-    t_aggtype agg, const std::vector<t_dep>& dependencies, t_sorttype sort_type)
-    : m_name(name)
-    , m_disp_name(disp_name)
+t_aggspec::t_aggspec(std::string name, std::string disp_name, t_aggtype agg,
+    const std::vector<t_dep>& dependencies, t_sorttype sort_type)
+    : m_name(std::move(name))
+    , m_disp_name(std::move(disp_name))
     , m_agg(agg)
     , m_dependencies(dependencies)
     , m_sort_type(sort_type) {}
 
-t_aggspec::t_aggspec(const std::string& aggname,
-    const std::string& disp_aggname, t_aggtype agg, t_uindex agg_one_idx,
-    t_uindex agg_two_idx, double agg_one_weight, double agg_two_weight)
-    : m_name(aggname)
-    , m_disp_name(disp_aggname)
+t_aggspec::t_aggspec(std::string aggname, std::string disp_aggname,
+    t_aggtype agg, t_uindex agg_one_idx, t_uindex agg_two_idx,
+    double agg_one_weight, double agg_two_weight)
+    : m_name(std::move(aggname))
+    , m_disp_name(std::move(disp_aggname))
     , m_agg(agg)
     , m_agg_one_idx(agg_one_idx)
     , m_agg_two_idx(agg_two_idx)
     , m_agg_one_weight(agg_one_weight)
     , m_agg_two_weight(agg_two_weight) {}
 
-t_aggspec::~t_aggspec() {}
+t_aggspec::~t_aggspec() = default;
 
 std::string
 t_aggspec::name() const {
@@ -382,11 +383,11 @@ t_aggspec::get_output_specs(const t_schema& schema) const {
         }
     }
 
-    return std::vector<t_col_name_type>();
+    return {};
 }
 
 std::vector<t_col_name_type>
-t_aggspec::mk_col_name_type_vec(const std::string& name, t_dtype dtype) const {
+t_aggspec::mk_col_name_type_vec(const std::string& name, t_dtype dtype) {
     std::vector<t_col_name_type> rval(1);
     rval[0].m_name = name;
     rval[0].m_type = dtype;
@@ -419,8 +420,9 @@ t_aggspec::is_non_delta() const {
 
 std::string
 t_aggspec::get_first_depname() const {
-    if (m_dependencies.empty())
+    if (m_dependencies.empty()) {
         return "";
+    }
 
     return m_dependencies[0].name();
 }

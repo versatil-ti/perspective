@@ -20,13 +20,12 @@
 #include <perspective/utils.h>
 #include <fcntl.h>
 #include <sys/mman.h>
-#include <sys/mman.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <stdio.h>
+#include <cstdio>
 
 namespace perspective {
 static void map_file_internal_(const std::string& fname, t_fflag fflag,
@@ -48,8 +47,7 @@ flush_mapping(void* base, t_uindex len) {
     PSP_COMPLAIN_AND_ABORT("Not implemented");
 }
 
-t_rfmapping::~t_rfmapping() {
-}
+t_rfmapping::~t_rfmapping() = default;
 
 static void map_file_internal_(const std::string& fname, t_fflag fflag,
     t_fflag fmode, t_fflag creation_disposition, t_fflag mprot, t_fflag mflag,

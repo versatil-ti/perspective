@@ -150,7 +150,7 @@ public:
     typedef std::map<const char*, const char*, t_cmp_charptr> t_sidxmap;
 
     t_stree(const std::vector<t_pivot>& pivots,
-        const std::vector<t_aggspec>& aggspecs, const t_schema& schema,
+        const std::vector<t_aggspec>& aggspecs, t_schema schema,
         const t_config& cfg);
     ~t_stree();
 
@@ -163,8 +163,7 @@ public:
 
     void build_strand_table_phase_1(t_tscalar pkey, t_op op, t_uindex idx,
         t_uindex npivots, t_uindex strand_count_idx, t_uindex aggcolsize,
-        bool force_current_row,
-        const std::vector<const t_column*>& piv_pcolcontexts,
+        bool force_current_row, const std::vector<const t_column*>& piv_ccols,
         const std::vector<const t_column*>& piv_tcols,
         const std::vector<const t_column*>& agg_ccols,
         const std::vector<const t_column*>& agg_dcols,
@@ -172,13 +171,13 @@ public:
         t_column* agg_scountspar, t_column* spkey, t_uindex& insert_count,
         bool& pivots_neq, const std::vector<std::string>& pivot_like) const;
 
-    void build_strand_table_phase_2(t_tscalar pkey, t_uindex idx,
+    static void build_strand_table_phase_2(t_tscalar pkey, t_uindex idx,
         t_uindex npivots, t_uindex strand_count_idx, t_uindex aggcolsize,
         const std::vector<const t_column*>& piv_pcols,
         const std::vector<const t_column*>& agg_pcols,
         std::vector<t_column*>& piv_scols, std::vector<t_column*>& agg_acols,
         t_column* agg_scount, t_column* spkey, t_uindex& insert_count,
-        const std::vector<std::string>& pivot_like) const;
+        const std::vector<std::string>& pivot_like);
 
     std::pair<std::shared_ptr<t_data_table>, std::shared_ptr<t_data_table>>
     build_strand_table(const t_data_table& flattened, const t_data_table& delta,
@@ -207,8 +206,8 @@ public:
     std::set<t_uindex> non_zero_ids(
         const std::vector<t_uindex>& zero_strands) const;
 
-    std::set<t_uindex> non_zero_ids(const std::set<t_uindex>& ptiset,
-        const std::vector<t_uindex>& zero_strands) const;
+    static std::set<t_uindex> non_zero_ids(const std::set<t_uindex>& ptiset,
+        const std::vector<t_uindex>& zero_strands);
 
     t_uindex get_parent_idx(t_uindex idx) const;
     std::vector<t_uindex> get_ancestry(t_uindex idx) const;
@@ -223,8 +222,8 @@ public:
 
     t_tnode get_node(t_uindex idx) const;
 
-    void get_path(t_uindex idx, std::vector<t_tscalar>& path) const;
-    void get_sortby_path(t_uindex idx, std::vector<t_tscalar>& path) const;
+    void get_path(t_uindex idx, std::vector<t_tscalar>& rval) const;
+    void get_sortby_path(t_uindex idx, std::vector<t_tscalar>& rval) const;
 
     t_uindex resolve_child(t_uindex root, const t_tscalar& datum) const;
 
@@ -261,7 +260,7 @@ public:
 
     t_tscalar get_aggregate(t_index idx, t_index aggnum) const;
 
-    t_tscalar get_aggregate_median(std::vector<t_tscalar>& values) const;
+    static t_tscalar get_aggregate_median(std::vector<t_tscalar>& values);
 
     void get_child_indices(t_index idx, std::vector<t_index>& out_data) const;
 
@@ -304,7 +303,7 @@ protected:
     void mark_zero_desc();
     t_uindex get_num_aggcols() const;
 
-    bool pivots_changed(t_value_transition t) const;
+    static bool pivots_changed(t_value_transition t);
     t_uindex genidx();
     t_uindex gen_aggidx();
     std::vector<t_uindex> get_children(t_uindex idx) const;
@@ -328,28 +327,27 @@ protected:
     // extract from the expressions table or the master table of the gnode,
     // these methods abstract away the "is_expression" check.
 
-    void read_column_from_gstate(const t_gstate& gstate,
+    static void read_column_from_gstate(const t_gstate& gstate,
         const t_data_table& expression_master_table, const std::string& colname,
-        const std::vector<t_tscalar>& pkeys,
-        std::vector<t_tscalar>& out_data) const;
+        const std::vector<t_tscalar>& pkeys, std::vector<t_tscalar>& out_data);
 
-    void read_column_from_gstate(const t_gstate& gstate,
+    static void read_column_from_gstate(const t_gstate& gstate,
         const t_data_table& expression_master_table, const std::string& colname,
         const std::vector<t_tscalar>& pkeys, std::vector<double>& out_data,
-        bool include_none) const;
+        bool include_none);
 
-    t_tscalar read_by_pkey_from_gstate(const t_gstate& gstate,
+    static t_tscalar read_by_pkey_from_gstate(const t_gstate& gstate,
         const t_data_table& expression_master_table, const std::string& colname,
-        t_tscalar& pkey) const;
+        t_tscalar& pkey);
 
-    bool is_unique_from_gstate(const t_gstate& gstate,
+    static bool is_unique_from_gstate(const t_gstate& gstate,
         const t_data_table& expression_master_table, const std::string& colname,
-        const std::vector<t_tscalar>& pkeys, t_tscalar& value) const;
+        const std::vector<t_tscalar>& pkeys, t_tscalar& value);
 
-    bool apply_from_gstate(const t_gstate& gstate,
+    static bool apply_from_gstate(const t_gstate& gstate,
         const t_data_table& expression_master_table, const std::string& colname,
         const std::vector<t_tscalar>& pkeys, t_tscalar& value,
-        std::function<bool(const t_tscalar&, t_tscalar&)> fn) const;
+        const std::function<bool(const t_tscalar&, t_tscalar&)>& fn);
 
     template <typename FN_T>
     typename FN_T::result_type reduce_from_gstate(const t_gstate& gstate,

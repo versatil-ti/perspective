@@ -47,7 +47,7 @@ public:
      * @param input_schema
      * @param output_schema
      */
-    t_gstate(const t_schema& input_schema, const t_schema& output_schema);
+    t_gstate(t_schema input_schema, t_schema output_schema);
 
     ~t_gstate();
 
@@ -88,7 +88,7 @@ public:
      * @param master_column
      * @param flattened_column
      */
-    void update_master_column(t_column* master_column,
+    static void update_master_column(t_column* master_column,
         const t_column* flattened_column, const t_column* op_column,
         const std::vector<t_uindex>& master_table_indexes, t_uindex num_rows);
 
@@ -115,19 +115,19 @@ public:
         const std::vector<t_tscalar>& pkeys, std::vector<double>& out_data,
         bool include_nones) const;
 
-    void read_column(const t_data_table& table, const std::string& colname,
-        t_uindex start_idx, t_uindex end_idx,
-        std::vector<t_tscalar>& out_data) const;
+    static void read_column(const t_data_table& table,
+        const std::string& colname, t_uindex start_idx, t_uindex end_idx,
+        std::vector<t_tscalar>& out_data);
 
-    void read_column(const t_data_table& table, const std::string& colname,
-        const std::vector<t_uindex>& row_indices,
-        std::vector<t_tscalar>& out_data) const;
+    static void read_column(const t_data_table& table,
+        const std::string& colname, const std::vector<t_uindex>& row_indices,
+        std::vector<t_tscalar>& out_data);
 
     // Also called extensively in contexts during aggregate calculation
 
     bool apply(const t_data_table& table, const std::string& colname,
         const std::vector<t_tscalar>& pkeys, t_tscalar& value,
-        std::function<bool(const t_tscalar&, t_tscalar&)> fn) const;
+        const std::function<bool(const t_tscalar&, t_tscalar&)>& fn) const;
 
     /**
      * @brief Reduce the column's values at the specified primary keys, and
@@ -200,7 +200,7 @@ public:
     std::shared_ptr<t_data_table> get_table() const;
     std::shared_ptr<t_data_table> get_pkeyed_table() const;
     std::shared_ptr<t_data_table> get_pkeyed_table(const t_schema& schema,
-        const std::shared_ptr<t_data_table> table) const;
+        const std::shared_ptr<t_data_table>& table) const;
 
     const t_schema& get_input_schema() const;
     const t_schema& get_output_schema() const;

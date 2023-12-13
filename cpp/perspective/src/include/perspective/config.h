@@ -124,7 +124,7 @@ public:
      * @return true
      * @return false
      */
-    bool is_trivial_config();
+    bool is_trivial_config() const;
 
     t_index get_colidx(const std::string& colname) const;
 

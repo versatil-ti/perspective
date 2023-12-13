@@ -13,6 +13,8 @@
 #include <perspective/first.h>
 #include <perspective/aggregate.h>
 
+#include <utility>
+
 namespace perspective {
 
 t_aggregate::t_aggregate(const t_dtree& tree, t_aggtype aggtype,
@@ -20,8 +22,8 @@ t_aggregate::t_aggregate(const t_dtree& tree, t_aggtype aggtype,
     std::shared_ptr<t_column> ocolumn)
     : m_tree(tree)
     , m_aggtype(aggtype)
-    , m_icolumns(icolumns)
-    , m_ocolumn(ocolumn) {}
+    , m_icolumns(std::move(std::move(icolumns)))
+    , m_ocolumn(std::move(std::move(ocolumn))) {}
 
 void
 t_aggregate::init() {

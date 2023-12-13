@@ -19,15 +19,17 @@
 
 #include <perspective/filter_utils.h>
 
+#include <cstddef>
+
 namespace perspective {
 
-t_ctxunit::t_ctxunit() {}
+t_ctxunit::t_ctxunit() = default;
 
 t_ctxunit::t_ctxunit(const t_schema& schema, const t_config& config)
     : t_ctxbase<t_ctxunit>(schema, config)
     , m_has_delta(false) {}
 
-t_ctxunit::~t_ctxunit() {}
+t_ctxunit::~t_ctxunit() = default;
 
 void
 t_ctxunit::init() {
@@ -36,8 +38,9 @@ t_ctxunit::init() {
 
 void
 t_ctxunit::step_begin() {
-    if (!m_init)
+    if (!m_init) {
         return;
+    }
 
     m_delta_pkeys.clear();
     m_rows_changed = false;
@@ -95,7 +98,7 @@ t_ctxunit::notify(const t_data_table& flattened, const t_data_table& delta,
         add_delta_pkey(pkey);
     }
 
-    m_has_delta = m_delta_pkeys.size() > 0 || delete_encountered;
+    m_has_delta = !m_delta_pkeys.empty() || delete_encountered;
 }
 
 /**
@@ -168,7 +171,7 @@ t_ctxunit::get_data(t_index start_row, t_index end_row, t_index start_col,
 
     t_index num_rows = ext.m_erow - ext.m_srow;
     t_index stride = ext.m_ecol - ext.m_scol;
-    std::vector<t_tscalar> values(num_rows * stride);
+    std::vector<t_tscalar> values(static_cast<std::size_t>(num_rows) * stride);
 
     auto none = mknone();
 
@@ -188,8 +191,9 @@ t_ctxunit::get_data(t_index start_row, t_index end_row, t_index start_col,
             auto v = out_data[ridx - ext.m_srow];
 
             // todo: fix null handling
-            if (!v.is_valid())
+            if (!v.is_valid()) {
                 v.set(none);
+            }
 
             values[(ridx - ext.m_srow) * stride + (cidx - ext.m_scol)] = v;
         }
@@ -222,8 +226,9 @@ t_ctxunit::get_data(const std::vector<t_uindex>& rows) const {
         for (t_uindex ridx = 0; ridx < rows.size(); ++ridx) {
             auto v = out_data[ridx];
 
-            if (!v.is_valid())
+            if (!v.is_valid()) {
                 v.set(none);
+            }
 
             values[(ridx)*stride + (cidx)] = v;
         }
@@ -250,8 +255,9 @@ t_ctxunit::get_data(const std::vector<t_tscalar>& pkeys) const {
         for (t_uindex ridx = 0; ridx < pkeys.size(); ++ridx) {
             auto v = out_data[ridx];
 
-            if (!v.is_valid())
+            if (!v.is_valid()) {
                 v.set(none);
+            }
 
             values[(ridx)*stride + (cidx)] = v;
         }
@@ -273,16 +279,17 @@ t_ctxunit::get_pkeys(
     // Validate cells
     t_index num_rows = get_row_count();
 
-    for (t_index idx = 0, loop_end = cells.size(); idx < loop_end; ++idx) {
-        t_index ridx = cells[idx].first;
-        if (ridx >= num_rows)
+    for (const auto& cell : cells) {
+        t_index ridx = cell.first;
+        if (ridx >= num_rows) {
             return {};
+        }
     }
 
     std::set<t_index> all_rows;
 
-    for (t_index idx = 0, loop_end = cells.size(); idx < loop_end; ++idx) {
-        all_rows.insert(cells[idx].first);
+    for (const auto& cell : cells) {
+        all_rows.insert(cell.first);
     }
 
     const t_data_table& master_table = *(m_gstate->get_table());
@@ -308,10 +315,11 @@ t_ctxunit::get_pkeys(
  */
 t_tscalar
 t_ctxunit::get_column_name(t_index idx) {
-    std::string empty("");
+    std::string empty;
 
-    if (idx >= get_column_count())
+    if (idx >= get_column_count()) {
         return m_symtable.get_interned_tscalar(empty.c_str());
+    }
 
     return m_symtable.get_interned_tscalar(m_config.col_at(idx).c_str());
 }
@@ -355,7 +363,7 @@ t_ctxunit::reset() {
 }
 
 bool
-t_ctxunit::get_deltas_enabled() const {
+t_ctxunit::get_deltas_enabled() {
     return true;
 }
 
@@ -363,7 +371,7 @@ void
 t_ctxunit::set_deltas_enabled(bool enabled_state) {}
 
 t_index
-t_ctxunit::sidedness() const {
+t_ctxunit::sidedness() {
     return 0;
 }
 
@@ -383,22 +391,22 @@ t_ctxunit::unity_get_row_data(t_uindex idx) const {
 }
 
 std::vector<t_tscalar>
-t_ctxunit::unity_get_row_path(t_uindex idx) const {
+t_ctxunit::unity_get_row_path(t_uindex idx) {
     return {};
 }
 
 std::vector<t_tscalar>
-t_ctxunit::unity_get_column_path(t_uindex idx) const {
-    return std::vector<t_tscalar>();
+t_ctxunit::unity_get_column_path(t_uindex idx) {
+    return {};
 }
 
 t_uindex
-t_ctxunit::unity_get_row_depth(t_uindex ridx) const {
+t_ctxunit::unity_get_row_depth(t_uindex ridx) {
     return 0;
 }
 
 t_uindex
-t_ctxunit::unity_get_column_depth(t_uindex cidx) const {
+t_ctxunit::unity_get_column_depth(t_uindex cidx) {
     return 0;
 }
 
@@ -418,12 +426,12 @@ t_ctxunit::unity_get_row_count() const {
 }
 
 bool
-t_ctxunit::unity_get_row_expanded(t_uindex idx) const {
+t_ctxunit::unity_get_row_expanded(t_uindex idx) {
     return false;
 }
 
 bool
-t_ctxunit::unity_get_column_expanded(t_uindex idx) const {
+t_ctxunit::unity_get_column_expanded(t_uindex idx) {
     return false;
 }
 
@@ -444,13 +452,15 @@ t_ctxunit::has_deltas() const {
 
 t_dtype
 t_ctxunit::get_column_dtype(t_uindex idx) const {
-    if (idx >= static_cast<t_uindex>(get_column_count()))
+    if (idx >= static_cast<t_uindex>(get_column_count())) {
         return DTYPE_NONE;
+    }
 
     auto cname = m_config.col_at(idx);
 
-    if (!m_schema.has_column(cname))
+    if (!m_schema.has_column(cname)) {
         return DTYPE_NONE;
+    }
 
     return m_schema.get_dtype(cname);
 }

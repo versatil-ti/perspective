@@ -16,8 +16,4 @@
 #include <perspective/binding.h>
 #include <perspective/python.h>
 
-namespace perspective {
-namespace binding {} // namespace binding
-} // namespace perspective
-
 #endif

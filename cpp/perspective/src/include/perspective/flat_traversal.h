@@ -105,9 +105,9 @@ public:
     t_index get_row_idx(t_tscalar pkey) const;
 
 private:
-    t_tscalar get_from_gstate(const t_gstate& gstate,
+    static t_tscalar get_from_gstate(const t_gstate& gstate,
         const t_data_table& expression_master_table, const std::string& colname,
-        t_tscalar pkey) const;
+        t_tscalar pkey);
 
     t_index m_step_deletes;
     t_index m_step_inserts;

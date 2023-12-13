@@ -23,7 +23,7 @@ class PERSPECTIVE_EXPORT t_range {
 public:
     t_range(t_uindex bridx, t_uindex eridx);
 
-    t_range(t_uindex bridx, t_uindex eridx, t_uindex bcidx, t_uindex beidx);
+    t_range(t_uindex bridx, t_uindex eridx, t_uindex bcidx, t_uindex ecidx);
 
     t_range(); // select all
 

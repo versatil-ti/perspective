@@ -18,14 +18,15 @@
 #include <perspective/env_vars.h>
 
 #include <chrono>
+#include <utility>
 
 namespace perspective {
 
-t_updctx::t_updctx() {}
+t_updctx::t_updctx() = default;
 
-t_updctx::t_updctx(t_uindex gnode_id, const std::string& ctx)
+t_updctx::t_updctx(t_uindex gnode_id, std::string ctx)
     : m_gnode_id(gnode_id)
-    , m_ctx(ctx) {}
+    , m_ctx(std::move(ctx)) {}
 
 #if defined PSP_ENABLE_WASM && !defined PSP_ENABLE_PYTHON
 
@@ -110,7 +111,7 @@ t_pool::unregister_gnode(t_uindex idx) {
         std::cout << "t_pool.unregister_gnode idx => " << idx << std::endl;
     }
 
-    m_gnodes[idx] = 0;
+    m_gnodes[idx] = nullptr;
 }
 
 void
@@ -173,8 +174,9 @@ std::vector<t_stree*>
 t_pool::get_trees() {
     std::vector<t_stree*> rval;
     for (auto& g : m_gnodes) {
-        if (!g)
+        if (g == nullptr) {
             continue;
+        }
         auto trees = g->get_trees();
         rval.insert(std::end(rval), std::begin(trees), std::end(trees));
     }
@@ -192,8 +194,9 @@ void
 t_pool::register_context(t_uindex gnode_id, const std::string& name,
     t_ctx_type type, std::int32_t ptr) {
     std::lock_guard<std::mutex> lg(m_mtx);
-    if (!validate_gnode_id(gnode_id))
+    if (!validate_gnode_id(gnode_id)) {
         return;
+    }
     m_gnodes[gnode_id]->_register_context(name, type, ptr);
 }
 
@@ -236,13 +239,14 @@ t_pool::unregister_context(t_uindex gnode_id, const std::string& name) {
                   << std::endl;
     }
 
-    if (!validate_gnode_id(gnode_id))
+    if (!validate_gnode_id(gnode_id)) {
         return;
+    }
     m_gnodes[gnode_id]->_unregister_context(name);
 }
 
 bool
-t_pool::get_data_remaining() const {
+t_pool::get_data_remaining() {
     auto data = m_data_remaining.load();
     return data;
 }
@@ -253,7 +257,7 @@ t_pool::get_row_data_pkeys(
     std::lock_guard<std::mutex> lg(m_mtx);
 
     if (!validate_gnode_id(gnode_id))
-        return std::vector<t_tscalar>();
+        return {};
 
     auto rv = m_gnodes[gnode_id]->get_row_data_pkeys(pkeys);
 
@@ -271,12 +275,13 @@ t_pool::get_contexts_last_updated() {
     std::lock_guard<std::mutex> lg(m_mtx);
     std::vector<t_updctx> rval;
 
-    for (t_uindex idx = 0, loop_end = m_gnodes.size(); idx < loop_end; ++idx) {
-        if (!m_gnodes[idx])
+    for (auto& m_gnode : m_gnodes) {
+        if (m_gnode == nullptr) {
             continue;
+        }
 
-        auto updated_contexts = m_gnodes[idx]->get_contexts_last_updated();
-        auto gnode_id = m_gnodes[idx]->get_id();
+        auto updated_contexts = m_gnode->get_contexts_last_updated();
+        auto gnode_id = m_gnode->get_id();
 
         for (const auto& ctx_name : updated_contexts) {
             if (t_env::log_progress()) {
@@ -284,7 +289,7 @@ t_pool::get_contexts_last_updated() {
                           << " gnode_id => " << gnode_id << " ctx_name => "
                           << ctx_name << std::endl;
             }
-            rval.push_back(t_updctx(gnode_id, ctx_name));
+            rval.emplace_back(gnode_id, ctx_name);
         }
     }
     return rval;
@@ -292,7 +297,7 @@ t_pool::get_contexts_last_updated() {
 
 bool
 t_pool::validate_gnode_id(t_uindex gnode_id) const {
-    return m_gnodes[gnode_id] && gnode_id < m_gnodes.size();
+    return (m_gnodes[gnode_id] != nullptr) && gnode_id < m_gnodes.size();
 }
 
 std::string
@@ -306,11 +311,12 @@ void
 t_pool::pprint_registered() const {
     auto self = repr();
 
-    for (t_uindex idx = 0, loop_end = m_gnodes.size(); idx < loop_end; ++idx) {
-        if (!m_gnodes[idx])
+    for (auto* m_gnode : m_gnodes) {
+        if (m_gnode == nullptr) {
             continue;
-        auto gnode_id = m_gnodes[idx]->get_id();
-        auto ctxnames = m_gnodes[idx]->get_registered_contexts();
+        }
+        auto gnode_id = m_gnode->get_id();
+        auto ctxnames = m_gnode->get_registered_contexts();
 
         for (const auto& cname : ctxnames) {
             std::cout << self << " gnode_id => " << gnode_id << " ctxname => "
@@ -335,8 +341,9 @@ t_pool::get_gnodes_last_updated() {
     std::vector<t_uindex> rv;
 
     for (t_uindex idx = 0, loop_end = m_gnodes.size(); idx < loop_end; ++idx) {
-        if (!m_gnodes[idx] || !m_gnodes[idx]->was_updated())
+        if ((m_gnodes[idx] == nullptr) || !m_gnodes[idx]->was_updated()) {
             continue;
+        }
 
         rv.push_back(idx);
         m_gnodes[idx]->clear_updated();
@@ -347,8 +354,8 @@ t_pool::get_gnodes_last_updated() {
 t_gnode*
 t_pool::get_gnode(t_uindex idx) {
     std::lock_guard<std::mutex> lg(m_mtx);
-    PSP_VERBOSE_ASSERT(
-        idx < m_gnodes.size() && m_gnodes[idx], "Bad gnode encountered");
+    PSP_VERBOSE_ASSERT(idx < m_gnodes.size() && (m_gnodes[idx] != nullptr),
+        "Bad gnode encountered");
     return m_gnodes[idx];
 }
 

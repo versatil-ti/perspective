@@ -14,16 +14,15 @@
 
 #include <perspective/python/expressions.h>
 
-namespace perspective {
-namespace binding {
+namespace perspective::binding {
 
-    void
-    init_expression_parser() {
-        t_computed_expression_parser::init();
+void
+init_expression_parser() {
+    t_computed_expression_parser::init();
     }
 
     t_validated_expression_map
-    validate_expressions_py(std::shared_ptr<Table> table,
+    validate_expressions_py(const std::shared_ptr<Table>& table,
         const std::vector<std::vector<t_val>>& p_expressions) {
         std::vector<std::tuple<std::string, std::string, std::string,
             std::vector<std::pair<std::string, std::string>>>>
@@ -33,9 +32,9 @@ namespace binding {
         // Convert from vector of t_val into vector of tuples
         for (t_uindex idx = 0; idx < p_expressions.size(); ++idx) {
             const auto& expr = p_expressions[idx];
-            std::string expression_alias = expr[0].cast<std::string>();
-            std::string expression_string = expr[1].cast<std::string>();
-            std::string parsed_expression_string = expr[2].cast<std::string>();
+            auto expression_alias = expr[0].cast<std::string>();
+            auto expression_string = expr[1].cast<std::string>();
+            auto parsed_expression_string = expr[2].cast<std::string>();
 
             auto p_column_ids = py::dict(expr[3]);
             std::vector<std::pair<std::string, std::string>> column_ids;
@@ -58,7 +57,6 @@ namespace binding {
         return table->validate_expressions(expressions);
     }
 
-} // end namespace binding
-} // end namespace perspective
+    } // namespace perspective::binding
 
 #endif

@@ -39,16 +39,15 @@ struct PERSPECTIVE_EXPORT t_lstore_recipe {
     t_lstore_recipe();
     t_lstore_recipe(t_uindex capacity);
 
-    t_lstore_recipe(const std::string& dirname, const std::string& colname,
-        t_uindex capacity, t_backing_store backing_store);
-
-    t_lstore_recipe(const std::string& dirname, const std::string& colname,
-        t_uindex capacity, t_fflag fflags, t_fflag fmode,
-        t_fflag creation_disposition, t_fflag mprot, t_fflag mflags,
+    t_lstore_recipe(std::string dirname, std::string colname, t_uindex capacity,
         t_backing_store backing_store);
 
-    t_lstore_recipe(const std::string& colname, t_uindex capacity,
+    t_lstore_recipe(std::string dirname, std::string colname, t_uindex capacity,
+        t_fflag fflags, t_fflag fmode, t_fflag creation_disposition,
         t_fflag mprot, t_fflag mflags, t_backing_store backing_store);
+
+    t_lstore_recipe(std::string colname, t_uindex capacity, t_fflag mprot,
+        t_fflag mflags, t_backing_store backing_store);
 
     std::string m_dirname;
     std::string m_colname;
@@ -110,8 +109,8 @@ public:
     t_lstore(const t_lstore& s, t_lstore_tmp_init_tag t);
     ~t_lstore();
 
-    t_lstore(t_lstore&& other);
-    t_lstore& operator=(t_lstore&& other);
+    t_lstore(t_lstore&& other) noexcept;
+    t_lstore& operator=(t_lstore&& other) noexcept;
     void copy_helper(t_lstore& other);
     void copy_helper(const t_lstore& other);
 
@@ -125,13 +124,13 @@ public:
     // in bytes
     void reserve(t_uindex capacity);
     void shrink(t_uindex capacity);
-    void copy(t_lstore& out);
+    void copy(t_lstore& out) const;
     void load(const std::string& fname);
     void save(const std::string& fname);
-    void warmup();
+    void warmup() const;
 
-    t_uindex size() const;
-    t_uindex capacity() const;
+    [[nodiscard]] t_uindex size() const;
+    [[nodiscard]] t_uindex capacity() const;
 
     template <typename T>
     void push_back(T value);
@@ -170,20 +169,20 @@ public:
     template <typename T>
     T* extend(t_uindex idx);
 
-    std::string get_fname() const;
+    [[nodiscard]] std::string get_fname() const;
 
     void* get_ptr(t_uindex offset);
-    const void* get_ptr(t_uindex offset) const;
+    [[nodiscard]] const void* get_ptr(t_uindex offset) const;
 
-    std::string get_desc_fname() const;
+    [[nodiscard]] std::string get_desc_fname() const;
 
-    t_uindex get_version() const;
+    [[nodiscard]] t_uindex get_version() const;
 
     void append(const t_lstore& other);
 
     void clear();
 
-    t_lstore_recipe get_recipe() const;
+    [[nodiscard]] t_lstore_recipe get_recipe() const;
 
     void fill(const t_lstore& other);
 
@@ -192,18 +191,18 @@ public:
     template <typename DATA_T>
     void raw_fill(DATA_T v);
 
-    std::string repr() const;
+    [[nodiscard]] std::string repr() const;
 
     void pprint() const;
 
-    std::shared_ptr<t_lstore> clone() const;
+    [[nodiscard]] std::shared_ptr<t_lstore> clone() const;
 
-    bool
+    [[nodiscard]] bool
     get_init() const {
         return m_init;
     }
 
-    bool
+    [[nodiscard]] bool
     empty() const {
         return size() == 0;
     }
@@ -215,13 +214,13 @@ public:
 
 protected:
     void copy_helper_(const t_lstore& other);
-    void freeze_impl();
-    void unfreeze_impl();
+    static void freeze_impl();
+    static void unfreeze_impl();
 
 private:
     void reserve_impl(t_uindex capacity, bool allow_shrink);
     t_handle create_file();
-    void* create_mapping();
+    void* create_mapping() const;
     void resize_mapping(t_uindex cap_new);
     void destroy_mapping();
 

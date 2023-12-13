@@ -22,6 +22,12 @@
 #include <perspective/env_vars.h>
 #include <perspective/traversal.h>
 
+#include <cstddef>
+
+#include <memory>
+
+#include <utility>
+
 namespace perspective {
 
 t_ctx1::t_ctx1(const t_schema& schema, const t_config& pivot_config)
@@ -29,7 +35,7 @@ t_ctx1::t_ctx1(const t_schema& schema, const t_config& pivot_config)
     , m_depth(0)
     , m_depth_set(false) {}
 
-t_ctx1::~t_ctx1() {}
+t_ctx1::~t_ctx1() = default;
 
 void
 t_ctx1::init() {
@@ -37,7 +43,7 @@ t_ctx1::init() {
     m_tree = std::make_shared<t_stree>(
         pivots, m_config.get_aggregates(), m_schema, m_config);
     m_tree->init();
-    m_traversal = std::shared_ptr<t_traversal>(new t_traversal(m_tree));
+    m_traversal = std::make_shared<t_traversal>(m_tree);
 
     // Each context stores its own expression columns in separate
     // `t_data_table`s so that each context's expressions are isolated
@@ -84,8 +90,9 @@ t_ctx1::open(t_index idx) {
     m_depth_set = false;
     m_depth = 0;
 
-    if (idx >= t_index(m_traversal->size()))
+    if (idx >= t_index(m_traversal->size())) {
         return 0;
+    }
 
     t_index retval = m_traversal->expand_node(m_sortby, idx);
     m_rows_changed = (retval > 0);
@@ -100,8 +107,9 @@ t_ctx1::close(t_index idx) {
     m_depth_set = false;
     m_depth = 0;
 
-    if (idx >= t_index(m_traversal->size()))
+    if (idx >= t_index(m_traversal->size())) {
         return 0;
+    }
 
     t_index retval = m_traversal->collapse_node(idx);
     m_rows_changed = (retval > 0);
@@ -111,9 +119,9 @@ t_ctx1::close(t_index idx) {
 std::pair<t_tscalar, t_tscalar>
 t_ctx1::get_min_max(const std::string& colname) const {
     auto rval = std::make_pair(mknone(), mknone());
-    auto aggtable = m_tree->get_aggtable();
+    auto* aggtable = m_tree->get_aggtable();
     t_schema aggschema = aggtable->get_schema();
-    auto col = aggtable->get_const_column(colname).get();
+    const auto* col = aggtable->get_const_column(colname).get();
     auto colidx = aggschema.get_colidx(colname);
     auto depth = m_config.get_num_rpivots();
     const std::vector<t_aggspec>& aggspecs = m_config.get_aggregates();
@@ -166,12 +174,12 @@ t_ctx1::get_data(t_index start_row, t_index end_row, t_index start_col,
     t_index nrows = ext.m_erow - ext.m_srow;
     t_index stride = ext.m_ecol - ext.m_scol;
 
-    std::vector<t_tscalar> tmpvalues(nrows * ncols);
-    std::vector<t_tscalar> values(nrows * stride);
+    std::vector<t_tscalar> tmpvalues(static_cast<std::size_t>(nrows) * ncols);
+    std::vector<t_tscalar> values(static_cast<std::size_t>(nrows) * stride);
 
     std::vector<const t_column*> aggcols(m_config.get_num_aggregates());
 
-    auto aggtable = m_tree->get_aggtable();
+    auto* aggtable = m_tree->get_aggtable();
     t_schema aggschema = aggtable->get_schema();
     auto none = mknone();
 
@@ -192,14 +200,16 @@ t_ctx1::get_data(t_index start_row, t_index end_row, t_index start_col,
                                                    : m_tree->get_aggidx(pnidx);
 
         t_tscalar tree_value = m_tree->get_value(nidx);
-        tmpvalues[(ridx - ext.m_srow) * ncols] = tree_value;
+        tmpvalues[static_cast<std::size_t>(ridx - ext.m_srow) * ncols]
+            = tree_value;
 
         for (t_index aggidx = 0, loop_end = aggcols.size(); aggidx < loop_end;
              ++aggidx) {
             t_tscalar value = extract_aggregate(
                 aggspecs[aggidx], aggcols[aggidx], agg_ridx, agg_pridx);
-            if (!value.is_valid())
+            if (!value.is_valid()) {
                 value.set(none); // todo: fix null handling
+            }
             tmpvalues[(ridx - ext.m_srow) * ncols + 1 + aggidx].set(value);
         }
     }
@@ -221,12 +231,12 @@ t_ctx1::get_data(const std::vector<t_uindex>& rows) const {
     t_uindex nrows = rows.size();
     t_uindex ncols = get_column_count();
 
-    std::vector<t_tscalar> tmpvalues(nrows * ncols);
-    std::vector<t_tscalar> values(nrows * ncols);
+    std::vector<t_tscalar> tmpvalues(static_cast<std::size_t>(nrows) * ncols);
+    std::vector<t_tscalar> values(static_cast<std::size_t>(nrows) * ncols);
 
     std::vector<const t_column*> aggcols(m_config.get_num_aggregates());
 
-    auto aggtable = m_tree->get_aggtable();
+    auto* aggtable = m_tree->get_aggtable();
     t_schema aggschema = aggtable->get_schema();
     auto none = mknone();
 
@@ -250,14 +260,15 @@ t_ctx1::get_data(const std::vector<t_uindex>& rows) const {
                                                    : m_tree->get_aggidx(pnidx);
 
         t_tscalar tree_value = m_tree->get_value(nidx);
-        tmpvalues[idx * ncols] = tree_value;
+        tmpvalues[static_cast<std::size_t>(idx) * ncols] = tree_value;
 
         for (t_index aggidx = 0, loop_end = aggcols.size(); aggidx < loop_end;
              ++aggidx) {
             t_tscalar value = extract_aggregate(
                 aggspecs[aggidx], aggcols[aggidx], agg_ridx, agg_pridx);
-            if (!value.is_valid())
+            if (!value.is_valid()) {
                 value.set(none); // todo: fix null handling
+            }
             tmpvalues[idx * ncols + 1 + aggidx].set(value);
         }
     }
@@ -316,8 +327,9 @@ t_aggspec
 t_ctx1::get_aggregate(t_uindex idx) const {
     PSP_TRACE_SENTINEL();
     PSP_VERBOSE_ASSERT(m_init, "touching uninited object");
-    if (idx >= m_config.get_num_aggregates())
-        return t_aggspec();
+    if (idx >= m_config.get_num_aggregates()) {
+        return {};
+    }
     return m_config.get_aggregates()[idx];
 }
 
@@ -326,8 +338,9 @@ t_ctx1::get_aggregate_name(t_uindex idx) const {
     PSP_TRACE_SENTINEL();
     PSP_VERBOSE_ASSERT(m_init, "touching uninited object");
     t_tscalar s;
-    if (idx >= m_config.get_num_aggregates())
+    if (idx >= m_config.get_num_aggregates()) {
         return s;
+    }
     s.set(m_config.get_aggregates()[idx].name_scalar());
     return s;
 }
@@ -343,8 +356,9 @@ std::vector<t_tscalar>
 t_ctx1::get_row_path(t_index idx) const {
     PSP_TRACE_SENTINEL();
     PSP_VERBOSE_ASSERT(m_init, "touching uninited object");
-    if (idx < 0)
-        return std::vector<t_tscalar>();
+    if (idx < 0) {
+        return {};
+    }
     return ctx_get_path(m_tree, m_traversal, idx);
 }
 
@@ -363,15 +377,16 @@ t_ctx1::sort_by(const std::vector<t_sortspec>& sortby) {
     if (m_sortby.empty()) {
         return;
     }
-    m_traversal->sort_by(m_config, sortby, *(m_tree.get()));
+    m_traversal->sort_by(m_config, sortby, *(m_tree));
 }
 
 void
 t_ctx1::set_depth(t_depth depth) {
     PSP_TRACE_SENTINEL();
     PSP_VERBOSE_ASSERT(m_init, "touching uninited object");
-    if (m_config.get_num_rpivots() == 0)
+    if (m_config.get_num_rpivots() == 0) {
         return;
+    }
     depth = std::min<t_depth>(m_config.get_num_rpivots() - 1, depth);
     t_index retval = 0;
     retval = m_traversal->set_depth(m_sortby, depth);
@@ -466,7 +481,7 @@ std::vector<t_uindex>
 t_ctx1::get_rows_changed() {
     std::vector<t_uindex> rows;
     const auto& deltas = m_tree->get_deltas();
-    t_uindex eidx = t_uindex(m_traversal->size());
+    auto eidx = t_uindex(m_traversal->size());
 
     for (t_uindex idx = 0; idx < eidx; ++idx) {
         t_index ptidx = m_traversal->get_tree_index(idx);
@@ -474,8 +489,9 @@ t_ctx1::get_rows_changed() {
         auto iterators = deltas->get<by_tc_nidx_aggidx>().equal_range(ptidx);
         bool unique_ridx
             = std::find(rows.begin(), rows.end(), idx) == rows.end();
-        if ((iterators.first != iterators.second) && unique_ridx)
+        if ((iterators.first != iterators.second) && unique_ridx) {
             rows.push_back(idx);
+        }
     }
 
     std::sort(rows.begin(), rows.end());
@@ -493,8 +509,8 @@ t_ctx1::get_cell_delta(t_index bidx, t_index eidx) const {
         t_index ptidx = m_traversal->get_tree_index(idx);
         auto iterators = deltas->get<by_tc_nidx_aggidx>().equal_range(ptidx);
         for (auto iter = iterators.first; iter != iterators.second; ++iter) {
-            rval.push_back(t_cellupd(
-                idx, iter->m_aggidx + 1, iter->m_old_value, iter->m_new_value));
+            rval.emplace_back(
+                idx, iter->m_aggidx + 1, iter->m_old_value, iter->m_new_value);
         }
     }
     return rval;
@@ -507,10 +523,11 @@ t_ctx1::reset(bool reset_expressions) {
         pivots, m_config.get_aggregates(), m_schema, m_config);
     m_tree->init();
     m_tree->set_deltas_enabled(get_feature_state(CTX_FEAT_DELTA));
-    m_traversal = std::shared_ptr<t_traversal>(new t_traversal(m_tree));
+    m_traversal = std::make_shared<t_traversal>(m_tree);
 
-    if (reset_expressions)
+    if (reset_expressions) {
         m_expression_tables->reset();
+    }
 }
 
 void
@@ -523,7 +540,7 @@ t_ctx1::reset_step_state() {
 }
 
 t_index
-t_ctx1::sidedness() const {
+t_ctx1::sidedness() {
     return 1;
 }
 
@@ -551,7 +568,7 @@ t_ctx1::pprint() const {
     }
 
     std::vector<const t_column*> aggcols(m_config.get_num_aggregates());
-    auto aggtable = m_tree->get_aggtable();
+    auto* aggtable = m_tree->get_aggtable();
     t_schema aggschema = aggtable->get_schema();
     auto none = mknone();
 
@@ -576,8 +593,9 @@ t_ctx1::pprint() const {
              ++aggidx) {
             t_tscalar value = extract_aggregate(
                 aggspecs[aggidx], aggcols[aggidx], agg_ridx, agg_pridx);
-            if (!value.is_valid())
+            if (!value.is_valid()) {
                 value.set(none); // todo: fix null handling
+            }
 
             std::cout << value << ", ";
         }
@@ -600,8 +618,9 @@ t_ctx1::get_row_idx(const std::vector<t_tscalar>& path) const {
 
 t_dtype
 t_ctx1::get_column_dtype(t_uindex idx) const {
-    if (idx == 0 || idx >= static_cast<t_uindex>(get_column_count()))
+    if (idx == 0 || idx >= static_cast<t_uindex>(get_column_count())) {
         return DTYPE_NONE;
+    }
     return m_tree->get_aggtable()->get_const_column(idx - 1)->get_dtype();
 }
 
@@ -611,7 +630,7 @@ t_ctx1::get_trav_depth(t_index idx) const {
 }
 
 void
-t_ctx1::compute_expressions(std::shared_ptr<t_data_table> master,
+t_ctx1::compute_expressions(const std::shared_ptr<t_data_table>& master,
     const t_gstate::t_mapping& pkey_map, t_expression_vocab& expression_vocab,
     t_regex_mapping& regex_mapping) {
     // Clear the transitional expression tables on the context so they are
@@ -635,12 +654,13 @@ t_ctx1::compute_expressions(std::shared_ptr<t_data_table> master,
 }
 
 void
-t_ctx1::compute_expressions(std::shared_ptr<t_data_table> master,
+t_ctx1::compute_expressions(const std::shared_ptr<t_data_table>& master,
     const t_gstate::t_mapping& pkey_map,
-    std::shared_ptr<t_data_table> flattened,
-    std::shared_ptr<t_data_table> delta, std::shared_ptr<t_data_table> prev,
-    std::shared_ptr<t_data_table> current,
-    std::shared_ptr<t_data_table> transitions,
+    const std::shared_ptr<t_data_table>& flattened,
+    const std::shared_ptr<t_data_table>& delta,
+    const std::shared_ptr<t_data_table>& prev,
+    const std::shared_ptr<t_data_table>& current,
+    const std::shared_ptr<t_data_table>& transitions,
     std::shared_ptr<t_data_table> existed, t_expression_vocab& expression_vocab,
     t_regex_mapping& regex_mapping) {
     // Clear the tables so they are ready for this round of updates
@@ -681,7 +701,7 @@ t_ctx1::compute_expressions(std::shared_ptr<t_data_table> master,
     }
 
     // Calculate the transitions now that the intermediate tables are computed
-    m_expression_tables->calculate_transitions(existed);
+    m_expression_tables->calculate_transitions(std::move(existed));
 }
 
 bool
@@ -704,16 +724,17 @@ t_ctx1::get_expression_tables() const {
 std::vector<t_tscalar>
 t_ctx1::unity_get_row_data(t_uindex idx) const {
     auto rval = get_data(idx, idx + 1, 0, get_column_count());
-    if (rval.empty())
-        return std::vector<t_tscalar>();
+    if (rval.empty()) {
+        return {};
+    }
 
-    return std::vector<t_tscalar>(rval.begin() + 1, rval.end());
+    return {rval.begin() + 1, rval.end()};
 }
 
 std::vector<t_tscalar>
 t_ctx1::unity_get_column_data(t_uindex idx) const {
     PSP_COMPLAIN_AND_ABORT("Not implemented");
-    return std::vector<t_tscalar>();
+    return {};
 }
 
 std::vector<t_tscalar>
@@ -723,7 +744,7 @@ t_ctx1::unity_get_row_path(t_uindex idx) const {
 
 std::vector<t_tscalar>
 t_ctx1::unity_get_column_path(t_uindex idx) const {
-    return std::vector<t_tscalar>();
+    return {};
 }
 
 t_uindex
@@ -809,6 +830,7 @@ t_ctx1::get_table() const {
     std::vector<t_column*> pivcols;
 
     std::stringstream ss;
+    pivcols.reserve(pivots.size());
     for (const auto& c : pivots) {
         pivcols.push_back(tbl->add_column(
             c.colname(), m_schema.get_dtype(c.colname()), true));

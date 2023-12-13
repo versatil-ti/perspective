@@ -38,11 +38,11 @@ t_cellupd::t_cellupd(t_index row, t_index column, const t_tscalar& old_value,
     , old_value(old_value)
     , new_value(new_value) {}
 
-t_cellupd::t_cellupd() {}
+t_cellupd::t_cellupd() = default;
 
 // t_stepdelta contains a vector of t_cellupd objects showing the cells that
 // have been changed
-t_stepdelta::t_stepdelta() {}
+t_stepdelta::t_stepdelta() = default;
 
 t_stepdelta::t_stepdelta(bool rows_changed, bool columns_changed,
     const std::vector<t_cellupd>& cells)
@@ -51,7 +51,7 @@ t_stepdelta::t_stepdelta(bool rows_changed, bool columns_changed,
     , cells(cells) {}
 
 // t_rowdelta contains a vector of row indices that have been changed
-t_rowdelta::t_rowdelta() {}
+t_rowdelta::t_rowdelta() = default;
 
 t_rowdelta::t_rowdelta(bool rows_changed, t_uindex num_rows_changed,
     const std::vector<t_tscalar>& data)

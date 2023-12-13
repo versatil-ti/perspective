@@ -13,14 +13,15 @@
 #include <perspective/first.h>
 #include <perspective/filter.h>
 
+#include <utility>
+
 namespace perspective {
 
-t_fterm::t_fterm() {}
+t_fterm::t_fterm() = default;
 
-t_fterm::t_fterm(const std::string& colname, t_filter_op op,
-    t_tscalar threshold, const std::vector<t_tscalar>& bag, bool negated,
-    bool is_primary)
-    : m_colname(colname)
+t_fterm::t_fterm(std::string colname, t_filter_op op, t_tscalar threshold,
+    const std::vector<t_tscalar>& bag, bool negated, bool is_primary)
+    : m_colname(std::move(colname))
     , m_op(op)
     , m_threshold(threshold)
     , m_bag(bag)
@@ -30,9 +31,9 @@ t_fterm::t_fterm(const std::string& colname, t_filter_op op,
         && threshold.m_type == DTYPE_STR;
 }
 
-t_fterm::t_fterm(const std::string& colname, t_filter_op op,
-    t_tscalar threshold, const std::vector<t_tscalar>& bag)
-    : m_colname(colname)
+t_fterm::t_fterm(std::string colname, t_filter_op op, t_tscalar threshold,
+    const std::vector<t_tscalar>& bag)
+    : m_colname(std::move(colname))
     , m_op(op)
     , m_threshold(threshold)
     , m_bag(bag)

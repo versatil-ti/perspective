@@ -90,7 +90,7 @@ t_date::get_tm() const {
 
 t_date
 from_consecutive_day_idx(std::int32_t idx) {
-    std::int32_t y = static_cast<std::int32_t>(idx / 365.2425);
+    auto y = static_cast<std::int32_t>(idx / 365.2425);
     std::int32_t yP = y - 1;
     std::int32_t idx_year_removed
         = idx - (y * 365 + yP / 4 - yP / 100 + yP / 400);
@@ -106,8 +106,9 @@ from_consecutive_day_idx(std::int32_t idx) {
         = std::lower_bound(CUMULATIVE_DAYS[yearkind],
               CUMULATIVE_DAYS[yearkind] + 13, idx_year_removed)
         - 1;
-    return t_date(y, std::distance(CUMULATIVE_DAYS[yearkind], pos) + 1,
-        idx_year_removed - *pos /*+1*/);
+    return {static_cast<int16_t>(y),
+        static_cast<int8_t>(std::distance(CUMULATIVE_DAYS[yearkind], pos) + 1),
+        static_cast<int8_t>(idx_year_removed - *pos) /*+1*/};
 }
 
 bool

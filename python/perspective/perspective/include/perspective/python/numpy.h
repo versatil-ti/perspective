@@ -85,9 +85,9 @@ namespace numpy {
          * @param type
          * @param is_update
          */
-        void fill_column(t_data_table& tbl, std::shared_ptr<t_column> col,
-            const std::string& name, t_dtype type, std::uint32_t cidx,
-            bool is_update);
+        void fill_column(t_data_table& tbl,
+            const std::shared_ptr<t_column>& col, const std::string& name,
+            t_dtype type, std::uint32_t cidx, bool is_update);
 
         std::vector<std::string> names() const;
         std::vector<t_dtype> types() const;
@@ -105,7 +105,7 @@ namespace numpy {
          * fill the column through iteration.
          */
         void fill_column_iter(const py::array& array, t_data_table& tbl,
-            std::shared_ptr<t_column> col, const std::string& name,
+            const std::shared_ptr<t_column>& col, const std::string& name,
             t_dtype np_dtype, t_dtype type, std::uint32_t cidx, bool is_update);
 
         /**
@@ -123,7 +123,7 @@ namespace numpy {
             std::uint32_t cidx, bool is_update);
 
         // Fill dates that might be `datetime.date` or strings
-        void fill_date_iter(std::shared_ptr<t_column> col,
+        void fill_date_iter(const std::shared_ptr<t_column>& col,
             const std::string& name, t_dtype np_dtype, t_dtype type,
             std::uint32_t cidx, bool is_update);
 
@@ -141,15 +141,16 @@ namespace numpy {
          * commonly used in numpy arrays.)
          */
         void fill_numeric_iter(const py::array& array, t_data_table& tbl,
-            std::shared_ptr<t_column> col, const std::string& name,
+            const std::shared_ptr<t_column>& col, const std::string& name,
             t_dtype np_dtype, t_dtype type, std::uint32_t cidx, bool is_update);
 
         void fill_datetime_iter(const py::array& array, t_data_table& tbl,
-            std::shared_ptr<t_column> col, const std::string& name,
-            t_dtype np_dtype, t_dtype type, std::uint32_t cidx, bool is_update);
+            const std::shared_ptr<t_column>& col, const std::string& name,
+            t_dtype np_dtype, t_dtype type, std::uint32_t cidx,
+            bool is_update) const;
 
         void fill_bool_iter(const py::array& array, t_data_table& tbl,
-            std::shared_ptr<t_column> col, const std::string& name,
+            const std::shared_ptr<t_column>& col, const std::string& name,
             t_dtype np_dtype, t_dtype type, std::uint32_t cidx, bool is_update);
 
         /**
@@ -172,11 +173,12 @@ namespace numpy {
          * copy operation.
          */
         t_fill_status try_copy_array(const py::array& src,
-            std::shared_ptr<t_column> dest, t_dtype np_dtype, t_dtype type,
-            const std::uint64_t offset);
+            const std::shared_ptr<t_column>& dest, t_dtype np_dtype,
+            t_dtype type, const std::uint64_t offset) const;
 
-        void fill_validity_map(std::shared_ptr<t_column> col,
-            std::uint64_t* mask_ptr, std::size_t mask_size, bool is_update);
+        void fill_validity_map(const std::shared_ptr<t_column>& col,
+            const std::uint64_t* mask_ptr, std::size_t mask_size,
+            bool is_update);
 
         // Return the column names from the Python data accessor
         std::vector<std::string> make_names();

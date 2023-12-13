@@ -13,28 +13,30 @@
 #include <perspective/computed_function.h>
 #include <perspective/gnode_state.h>
 #include <perspective/column.h>
-#include <math.h>
+#include <cmath>
 
-namespace perspective {
+#include <utility>
 
-namespace computed_function {
+#include <utility>
 
-    intern::intern(t_expression_vocab& expression_vocab, bool is_type_validator)
-        : exprtk::igeneric_function<t_tscalar>("S")
-        , m_expression_vocab(expression_vocab)
-        , m_is_type_validator(is_type_validator) {
-        // The sentinel is a string scalar pointing to an empty string
-        // that is stored in `expression_vocab`. Previously we were using
-        // string scalars with nullptrs to type check, which caused nullptr
-        // errors in strcmp().
-        t_tscalar sentinel;
-        sentinel.clear();
-        sentinel.set(m_expression_vocab.get_empty_string());
-        sentinel.m_status = STATUS_INVALID;
-        m_sentinel = sentinel;
+namespace perspective::computed_function {
+
+intern::intern(t_expression_vocab& expression_vocab, bool is_type_validator)
+    : exprtk::igeneric_function<t_tscalar>("S")
+    , m_expression_vocab(expression_vocab)
+    , m_is_type_validator(is_type_validator) {
+    // The sentinel is a string scalar pointing to an empty string
+    // that is stored in `expression_vocab`. Previously we were using
+    // string scalars with nullptrs to type check, which caused nullptr
+    // errors in strcmp().
+    t_tscalar sentinel;
+    sentinel.clear();
+    sentinel.set(m_expression_vocab.get_empty_string());
+    sentinel.m_status = STATUS_INVALID;
+    m_sentinel = sentinel;
     }
 
-    intern::~intern() {}
+    intern::~intern() = default;
 
     t_tscalar
     intern::operator()(t_parameter_list parameters) {
@@ -64,7 +66,7 @@ namespace computed_function {
         m_sentinel = sentinel;
     }
 
-    concat::~concat() {}
+    concat::~concat() = default;
 
     t_tscalar
     concat::operator()(t_parameter_list parameters) {
@@ -73,8 +75,9 @@ namespace computed_function {
         rval.clear();
         rval.m_type = DTYPE_STR;
 
-        if (parameters.size() == 0)
+        if (parameters.empty()) {
             return rval;
+        }
 
         for (auto i = 0; i < parameters.size(); ++i) {
             t_generic_type& gt = parameters[i];
@@ -111,7 +114,7 @@ namespace computed_function {
         }
 
         // We know the params are valid - so return the sentinel string value.
-        if (result == "" || m_is_type_validator) {
+        if (result.empty() || m_is_type_validator) {
             return m_sentinel;
         }
 
@@ -131,7 +134,7 @@ namespace computed_function {
         m_sentinel = sentinel;
     }
 
-    upper::~upper() {}
+    upper::~upper() = default;
 
     t_tscalar
     upper::operator()(t_parameter_list parameters) {
@@ -163,7 +166,7 @@ namespace computed_function {
         // don't try to intern an empty string as it will throw an error, but
         // by this point we know the params are valid - so return the sentinel
         // string value.
-        if (temp_str == "" || m_is_type_validator) {
+        if (temp_str.empty() || m_is_type_validator) {
             return m_sentinel;
         }
 
@@ -185,7 +188,7 @@ namespace computed_function {
         m_sentinel = sentinel;
     }
 
-    lower::~lower() {}
+    lower::~lower() = default;
 
     t_tscalar
     lower::operator()(t_parameter_list parameters) {
@@ -216,7 +219,7 @@ namespace computed_function {
         // don't try to intern an empty string as it will throw an error, but
         // by this point we know the params are valid - so return the sentinel
         // string value.
-        if (temp_str == "" || m_is_type_validator) {
+        if (temp_str.empty() || m_is_type_validator) {
             return m_sentinel;
         }
 
@@ -229,7 +232,7 @@ namespace computed_function {
     length::length()
         : exprtk::igeneric_function<t_tscalar>("T") {}
 
-    length::~length() {}
+    length::~length() = default;
 
     t_tscalar
     length::operator()(t_parameter_list parameters) {
@@ -276,7 +279,7 @@ namespace computed_function {
         m_sentinel = sentinel;
     }
 
-    order::~order() {}
+    order::~order() = default;
 
     t_tscalar
     order::operator()(t_parameter_list parameters) {
@@ -314,7 +317,7 @@ namespace computed_function {
         }
 
         // generate the map if not generated
-        if (m_order_map.size() == 0) {
+        if (m_order_map.empty()) {
             // Validate order parameters
             for (auto i = 1; i < parameters.size(); ++i) {
                 // Because all strings are interned, there should be no string
@@ -398,7 +401,7 @@ namespace computed_function {
         : exprtk::igeneric_function<t_tscalar>("TS")
         , m_regex_mapping(regex_mapping) {}
 
-    match::~match() {}
+    match::~match() = default;
 
     t_tscalar
     match::operator()(t_parameter_list parameters) {
@@ -416,7 +419,7 @@ namespace computed_function {
 
         // Type-check: only operate on strings, and pattern must be > size 0
         if (str.get_dtype() != DTYPE_STR || str.m_status == STATUS_CLEAR
-            || match_pattern.size() == 0) {
+            || match_pattern.empty()) {
             rval.m_status = STATUS_CLEAR;
             return rval;
         }
@@ -428,8 +431,9 @@ namespace computed_function {
             return rval;
         }
 
-        if (!str.is_valid())
+        if (!str.is_valid()) {
             return rval;
+        }
 
         const std::string& match_string = str.to_string();
 
@@ -443,7 +447,7 @@ namespace computed_function {
         : exprtk::igeneric_function<t_tscalar>("TS")
         , m_regex_mapping(regex_mapping) {}
 
-    match_all::~match_all() {}
+    match_all::~match_all() = default;
 
     t_tscalar
     match_all::operator()(t_parameter_list parameters) {
@@ -461,7 +465,7 @@ namespace computed_function {
 
         // Type-check: only operate on strings, and pattern must be > size 0
         if (str.get_dtype() != DTYPE_STR || str.m_status == STATUS_CLEAR
-            || match_pattern.size() == 0) {
+            || match_pattern.empty()) {
             rval.m_status = STATUS_CLEAR;
             return rval;
         }
@@ -473,8 +477,9 @@ namespace computed_function {
             return rval;
         }
 
-        if (!str.is_valid())
+        if (!str.is_valid()) {
             return rval;
+        }
 
         const std::string& match_string = str.to_string();
 
@@ -491,7 +496,7 @@ namespace computed_function {
         , m_regex_mapping(regex_mapping)
         , m_is_type_validator(is_type_validator) {}
 
-    search::~search() {}
+    search::~search() = default;
 
     t_tscalar
     search::operator()(t_parameter_list parameters) {
@@ -509,7 +514,7 @@ namespace computed_function {
 
         // Type-check: only operate on strings, and pattern must be > size 0
         if (str.get_dtype() != DTYPE_STR || str.m_status == STATUS_CLEAR
-            || match_pattern.size() == 0) {
+            || match_pattern.empty()) {
             rval.m_status = STATUS_CLEAR;
             return rval;
         }
@@ -522,8 +527,9 @@ namespace computed_function {
             return rval;
         }
 
-        if (!str.is_valid() || m_is_type_validator)
+        if (!str.is_valid() || m_is_type_validator) {
             return rval;
+        }
 
         re2::StringPiece result;
         const std::string& match_string = str.to_string();
@@ -532,7 +538,7 @@ namespace computed_function {
 
         // Return null if no match, or if the match is size 0 - don't allow
         // empty strings back out.
-        if (!found || result.size() == 0) {
+        if (!found || result.empty()) {
             return rval;
         }
 
@@ -545,7 +551,7 @@ namespace computed_function {
         : exprtk::igeneric_function<t_tscalar>("TSV")
         , m_regex_mapping(regex_mapping) {}
 
-    indexof::~indexof() {}
+    indexof::~indexof() = default;
 
     t_tscalar
     indexof::operator()(t_parameter_list parameters) {
@@ -565,7 +571,7 @@ namespace computed_function {
         // Type-check: only operate on strings, and pattern must be > size 0,
         // and output vector must be big enough to hold the output
         if (str.get_dtype() != DTYPE_STR || str.m_status == STATUS_CLEAR
-            || match_pattern.size() == 0 || output_vector.size() < 2) {
+            || match_pattern.empty() || output_vector.size() < 2) {
             rval.m_status = STATUS_CLEAR;
             return rval;
         }
@@ -578,8 +584,9 @@ namespace computed_function {
             return rval;
         }
 
-        if (!str.is_valid())
+        if (!str.is_valid()) {
             return rval;
+        }
 
         re2::StringPiece result;
         const std::string& match_string = str.to_string();
@@ -621,7 +628,7 @@ namespace computed_function {
         : m_expression_vocab(expression_vocab)
         , m_is_type_validator(is_type_validator) {}
 
-    substring::~substring() {}
+    substring::~substring() = default;
 
     t_tscalar
     substring::operator()(t_parameter_list parameters) {
@@ -714,7 +721,7 @@ namespace computed_function {
         , m_regex_mapping(regex_mapping)
         , m_is_type_validator(is_type_validator) {}
 
-    replace::~replace() {}
+    replace::~replace() = default;
 
     t_tscalar
     replace::operator()(t_parameter_list parameters) {
@@ -747,7 +754,7 @@ namespace computed_function {
 
             // only the empty string should be passed in as a string literal,
             // all other strings must be interned first.
-            if (replacer_str.size() != 0) {
+            if (!replacer_str.empty()) {
                 rval.m_status = STATUS_CLEAR;
                 return rval;
             }
@@ -760,8 +767,7 @@ namespace computed_function {
         }
 
         if (string_scalar.m_type != DTYPE_STR
-            || replacer_scalar.m_type != DTYPE_STR
-            || match_pattern.size() == 0) {
+            || replacer_scalar.m_type != DTYPE_STR || match_pattern.empty()) {
             rval.m_status = STATUS_CLEAR;
             return rval;
         }
@@ -775,15 +781,17 @@ namespace computed_function {
         }
 
         // done with type_checking
-        if (m_is_type_validator)
+        if (m_is_type_validator) {
             return rval;
+        }
 
         // make a copy of search_str, as replace() will mutate it and we
         // don't want to mutate the string in the vocab
         std::string search_string = string_scalar.to_string();
 
-        if (search_string.size() == 0)
+        if (search_string.empty()) {
             return rval;
+        }
 
         // but we can take a reference to the replacer
         const std::string& replacer_string = replacer_scalar.to_string();
@@ -810,7 +818,7 @@ namespace computed_function {
         , m_regex_mapping(regex_mapping)
         , m_is_type_validator(is_type_validator) {}
 
-    replace_all::~replace_all() {}
+    replace_all::~replace_all() = default;
 
     t_tscalar
     replace_all::operator()(t_parameter_list parameters) {
@@ -843,7 +851,7 @@ namespace computed_function {
 
             // only the empty string should be passed in as a string literal,
             // all other strings must be interned first.
-            if (replacer_str.size() != 0) {
+            if (!replacer_str.empty()) {
                 rval.m_status = STATUS_CLEAR;
                 return rval;
             }
@@ -856,8 +864,7 @@ namespace computed_function {
         }
 
         if (string_scalar.m_type != DTYPE_STR
-            || replacer_scalar.m_type != DTYPE_STR
-            || match_pattern.size() == 0) {
+            || replacer_scalar.m_type != DTYPE_STR || match_pattern.empty()) {
             rval.m_status = STATUS_CLEAR;
             return rval;
         }
@@ -871,15 +878,17 @@ namespace computed_function {
         }
 
         // done with type_checking
-        if (m_is_type_validator)
+        if (m_is_type_validator) {
             return rval;
+        }
 
         // make a copy of search_str, as replace() will mutate it and we
         // don't want to mutate the string in the vocab
         std::string search_string = string_scalar.to_string();
 
-        if (search_string.size() == 0)
+        if (search_string.empty()) {
             return rval;
+        }
 
         // but we can take a reference to the replacer
         const std::string& replacer_string = replacer_scalar.to_string();
@@ -902,7 +911,7 @@ namespace computed_function {
     hour_of_day::hour_of_day()
         : exprtk::igeneric_function<t_tscalar>("T") {}
 
-    hour_of_day::~hour_of_day() {}
+    hour_of_day::~hour_of_day() = default;
 
     t_tscalar
     hour_of_day::operator()(t_parameter_list parameters) {
@@ -975,7 +984,7 @@ namespace computed_function {
         m_sentinel = sentinel;
     }
 
-    day_of_week::~day_of_week() {}
+    day_of_week::~day_of_week() = default;
 
     t_tscalar
     day_of_week::operator()(t_parameter_list parameters) {
@@ -1057,7 +1066,7 @@ namespace computed_function {
         m_sentinel = sentinel;
     }
 
-    month_of_year::~month_of_year() {}
+    month_of_year::~month_of_year() = default;
 
     t_tscalar
     month_of_year::operator()(t_parameter_list parameters) {
@@ -1129,7 +1138,7 @@ namespace computed_function {
     bucket::bucket()
         : exprtk::igeneric_function<t_tscalar>("T?") {}
 
-    bucket::~bucket() {}
+    bucket::~bucket() = default;
 
     t_tscalar
     bucket::operator()(t_parameter_list parameters) {
@@ -1182,7 +1191,8 @@ namespace computed_function {
             // Does not type-check!
             rval.m_status = STATUS_CLEAR;
             return rval;
-        } else if (len == 1) {
+        }
+        if (len == 1) {
             // No multiplicity explicity given, defaults to 1.
             multiplicity = 1;
             temp_unit = unit_str.at(0);
@@ -1210,25 +1220,25 @@ namespace computed_function {
         // type-check multiplicity
         switch (date_unit) {
             case t_date_bucket_unit::SECONDS:
-                if (!(multiplicity == 1 || multiplicity == 5
-                        || multiplicity == 10 || multiplicity == 15
-                        || multiplicity == 20 || multiplicity == 30)) {
+                if (multiplicity != 1 && multiplicity != 5 && multiplicity != 10
+                    && multiplicity != 15 && multiplicity != 20
+                    && multiplicity != 30) {
                     rval.m_status = STATUS_CLEAR;
                     return rval;
                 }
                 break;
             case t_date_bucket_unit::MINUTES:
-                if (!(multiplicity == 1 || multiplicity == 5
-                        || multiplicity == 10 || multiplicity == 15
-                        || multiplicity == 20 || multiplicity == 30)) {
+                if (multiplicity != 1 && multiplicity != 5 && multiplicity != 10
+                    && multiplicity != 15 && multiplicity != 20
+                    && multiplicity != 30) {
                     rval.m_status = STATUS_CLEAR;
                     return rval;
                 }
                 break;
             case t_date_bucket_unit::HOURS:
-                if (!(multiplicity == 1 || multiplicity == 2
-                        || multiplicity == 3 || multiplicity == 4
-                        || multiplicity == 6 || multiplicity == 12)) {
+                if (multiplicity != 1 && multiplicity != 2 && multiplicity != 3
+                    && multiplicity != 4 && multiplicity != 6
+                    && multiplicity != 12) {
                     rval.m_status = STATUS_CLEAR;
                     return rval;
                 }
@@ -1248,9 +1258,8 @@ namespace computed_function {
                 }
                 break;
             case t_date_bucket_unit::MONTHS:
-                if (!(multiplicity == 1 || multiplicity == 2
-                        || multiplicity == 3 || multiplicity == 4
-                        || multiplicity == 6)) {
+                if (multiplicity != 1 && multiplicity != 2 && multiplicity != 3
+                    && multiplicity != 4 && multiplicity != 6) {
                     rval.m_status = STATUS_CLEAR;
                     return rval;
                 }
@@ -1263,7 +1272,7 @@ namespace computed_function {
         }
         t_dtype val_dtype = val.get_dtype();
         // type-check
-        if (!(val_dtype == DTYPE_DATE || val_dtype == DTYPE_TIME)) {
+        if (val_dtype != DTYPE_DATE && val_dtype != DTYPE_TIME) {
             rval.m_status = STATUS_CLEAR;
         }
 
@@ -1400,12 +1409,11 @@ namespace computed_function {
                 std::tm* t = std::localtime(&temp);
 
                 // Get the year and create a new `t_date`
-                std::int32_t year
-                    = static_cast<std::int32_t>(t->tm_year + 1900);
+                auto year = static_cast<std::int32_t>(t->tm_year + 1900);
 
                 // Month in `t_date` is [0-11]
                 std::int32_t month = static_cast<std::uint32_t>(t->tm_mon);
-                std::uint32_t day = static_cast<std::uint32_t>(t->tm_mday);
+                auto day = static_cast<std::uint32_t>(t->tm_mday);
 
                 rval.set(t_date(year, month, day));
             } break;
@@ -1524,8 +1532,7 @@ namespace computed_function {
                 std::tm* t = std::localtime(&temp);
 
                 // Use the `tm` to create the `t_date`
-                std::int32_t year
-                    = static_cast<std::int32_t>(t->tm_year + 1900);
+                auto year = static_cast<std::int32_t>(t->tm_year + 1900);
                 std::int32_t month = static_cast<std::uint32_t>(t->tm_mon);
                 if (multiplicity != 1) {
                     month = floor(static_cast<double>(month) / multiplicity)
@@ -1561,8 +1568,7 @@ namespace computed_function {
                 std::tm* t = std::localtime(&temp);
 
                 // Use the `tm` to create the `t_date`
-                std::int32_t year
-                    = static_cast<std::int32_t>(t->tm_year + 1900);
+                auto year = static_cast<std::int32_t>(t->tm_year + 1900);
                 if (multiplicity != 1) {
                     year = floor(static_cast<double>(year) / multiplicity)
                         * multiplicity;
@@ -1602,11 +1608,11 @@ namespace computed_function {
         std::tm* t = std::localtime(&temp);
 
         // Get the year and create a new `t_date`
-        std::int32_t year = static_cast<std::int32_t>(t->tm_year + 1900);
+        auto year = static_cast<std::int32_t>(t->tm_year + 1900);
 
         // Month in `t_date` is [0-11]
         std::int32_t month = static_cast<std::uint32_t>(t->tm_mon);
-        std::uint32_t day = static_cast<std::uint32_t>(t->tm_mday);
+        auto day = static_cast<std::uint32_t>(t->tm_mday);
 
         rval.set(t_date(year, month, day));
         return rval;
@@ -1615,7 +1621,7 @@ namespace computed_function {
     inrange_fn::inrange_fn()
         : exprtk::igeneric_function<t_tscalar>("TTT") {}
 
-    inrange_fn::~inrange_fn() {}
+    inrange_fn::~inrange_fn() = default;
 
     t_tscalar
     inrange_fn::operator()(t_parameter_list parameters) {
@@ -1635,7 +1641,7 @@ namespace computed_function {
         // comparisons will fail.
         t_dtype val_dtype = val.get_dtype();
 
-        if (!(low.get_dtype() == val_dtype && val_dtype == high.get_dtype())) {
+        if (low.get_dtype() != val_dtype || val_dtype != high.get_dtype()) {
             rval.m_status = STATUS_CLEAR;
             return rval;
         }
@@ -1649,9 +1655,9 @@ namespace computed_function {
         return rval;
     }
 
-    min_fn::min_fn() {}
+    min_fn::min_fn() = default;
 
-    min_fn::~min_fn() {}
+    min_fn::~min_fn() = default;
 
     t_tscalar
     min_fn::operator()(t_parameter_list parameters) {
@@ -1673,11 +1679,10 @@ namespace computed_function {
                 if (!temp.is_numeric()) {
                     rval.m_status = STATUS_CLEAR;
                     return rval;
-                } else {
-                    // correct type - we will check for STATUS_VALID later
-                    inputs[i] = temp;
-                    continue;
-                }
+                } // correct type - we will check for STATUS_VALID later
+                inputs[i] = temp;
+                continue;
+
             } else {
                 // An invalid call - needs to fail at the type check.
                 rval.m_status = STATUS_CLEAR;
@@ -1702,9 +1707,9 @@ namespace computed_function {
         return rval;
     }
 
-    max_fn::max_fn() {}
+    max_fn::max_fn() = default;
 
-    max_fn::~max_fn() {}
+    max_fn::~max_fn() = default;
 
     t_tscalar
     max_fn::operator()(t_parameter_list parameters) {
@@ -1726,11 +1731,10 @@ namespace computed_function {
                 if (!temp.is_numeric()) {
                     rval.m_status = STATUS_CLEAR;
                     return rval;
-                } else {
-                    // correct type - we will check for STATUS_VALID later
-                    inputs[i] = temp;
-                    continue;
-                }
+                } // correct type - we will check for STATUS_VALID later
+                inputs[i] = temp;
+                continue;
+
             } else {
                 // An invalid call - needs to fail at the type check.
                 rval.m_status = STATUS_CLEAR;
@@ -1758,7 +1762,7 @@ namespace computed_function {
     diff3::diff3()
         : exprtk::igeneric_function<t_tscalar>("VVV") {}
 
-    diff3::~diff3() {}
+    diff3::~diff3() = default;
 
     t_tscalar
     diff3::operator()(t_parameter_list parameters) {
@@ -1790,7 +1794,7 @@ namespace computed_function {
     norm3::norm3()
         : exprtk::igeneric_function<t_tscalar>("V") {}
 
-    norm3::~norm3() {}
+    norm3::~norm3() = default;
 
     t_tscalar
     norm3::operator()(t_parameter_list parameters) {
@@ -1808,7 +1812,7 @@ namespace computed_function {
     cross_product3::cross_product3()
         : exprtk::igeneric_function<t_tscalar>("VVV") {}
 
-    cross_product3::~cross_product3() {}
+    cross_product3::~cross_product3() = default;
 
     t_tscalar
     cross_product3::operator()(t_parameter_list parameters) {
@@ -1844,7 +1848,7 @@ namespace computed_function {
     dot_product3::dot_product3()
         : exprtk::igeneric_function<t_tscalar>("VV") {}
 
-    dot_product3::~dot_product3() {}
+    dot_product3::~dot_product3() = default;
 
     t_tscalar
     dot_product3::operator()(t_parameter_list parameters) {
@@ -1863,7 +1867,7 @@ namespace computed_function {
     percent_of::percent_of()
         : exprtk::igeneric_function<t_tscalar>("TT") {}
 
-    percent_of::~percent_of() {}
+    percent_of::~percent_of() = default;
 
     t_tscalar
     percent_of::operator()(t_parameter_list parameters) {
@@ -1901,7 +1905,7 @@ namespace computed_function {
     is_null::is_null()
         : exprtk::igeneric_function<t_tscalar>("T") {}
 
-    is_null::~is_null() {}
+    is_null::~is_null() = default;
 
     t_tscalar
     is_null::operator()(t_parameter_list parameters) {
@@ -1922,7 +1926,7 @@ namespace computed_function {
     is_not_null::is_not_null()
         : exprtk::igeneric_function<t_tscalar>("T") {}
 
-    is_not_null::~is_not_null() {}
+    is_not_null::~is_not_null() = default;
 
     t_tscalar
     is_not_null::operator()(t_parameter_list parameters) {
@@ -1952,7 +1956,7 @@ namespace computed_function {
         m_sentinel = sentinel;
     }
 
-    to_string::~to_string() {}
+    to_string::~to_string() = default;
 
     t_tscalar
     to_string::operator()(t_parameter_list parameters) {
@@ -1975,7 +1979,7 @@ namespace computed_function {
         // don't try to intern an empty string as it will throw an error, but
         // by this point we know the params are valid - so return the sentinel
         // string value.
-        if (temp_str == "" || m_is_type_validator) {
+        if (temp_str.empty() || m_is_type_validator) {
             return m_sentinel;
         }
 
@@ -1986,7 +1990,7 @@ namespace computed_function {
     to_integer::to_integer()
         : exprtk::igeneric_function<t_tscalar>("T") {}
 
-    to_integer::~to_integer() {}
+    to_integer::~to_integer() = default;
 
     t_tscalar
     to_integer::operator()(t_parameter_list parameters) {
@@ -2016,8 +2020,9 @@ namespace computed_function {
             std::stringstream ss(val.to_string());
             ss >> number;
 
-            if (ss.fail())
+            if (ss.fail()) {
                 return rval;
+            }
         } else {
             number = val.to_double();
         }
@@ -2040,7 +2045,7 @@ namespace computed_function {
     to_float::to_float()
         : exprtk::igeneric_function<t_tscalar>("T") {}
 
-    to_float::~to_float() {}
+    to_float::~to_float() = default;
 
     t_tscalar
     to_float::operator()(t_parameter_list parameters) {
@@ -2064,8 +2069,9 @@ namespace computed_function {
             std::stringstream ss(val.to_string());
             ss >> number;
 
-            if (ss.fail())
+            if (ss.fail()) {
                 return rval;
+            }
         } else {
             number = val.to_double();
         }
@@ -2082,7 +2088,7 @@ namespace computed_function {
     to_boolean::to_boolean()
         : exprtk::igeneric_function<t_tscalar>("T") {}
 
-    to_boolean::~to_boolean() {}
+    to_boolean::~to_boolean() = default;
 
     t_tscalar
     to_boolean::operator()(t_parameter_list parameters) {
@@ -2108,7 +2114,7 @@ namespace computed_function {
     make_date::make_date()
         : exprtk::igeneric_function<t_tscalar>("TTT") {}
 
-    make_date::~make_date() {}
+    make_date::~make_date() = default;
 
     t_tscalar
     make_date::operator()(t_parameter_list parameters) {
@@ -2153,7 +2159,7 @@ namespace computed_function {
     make_datetime::make_datetime()
         : exprtk::igeneric_function<t_tscalar>("T") {}
 
-    make_datetime::~make_datetime() {}
+    make_datetime::~make_datetime() = default;
 
     t_tscalar
     make_datetime::operator()(t_parameter_list parameters) {
@@ -2186,10 +2192,10 @@ namespace computed_function {
         std::shared_ptr<t_data_table> source_table, t_uindex& row_idx)
         : exprtk::igeneric_function<t_tscalar>("Z")
         , m_pkey_map(pkey_map)
-        , m_source_table(source_table)
+        , m_source_table(std::move(std::move(source_table)))
         , m_row_idx(row_idx) {}
 
-    index::~index() {}
+    index::~index() = default;
 
     t_tscalar
     index::operator()(t_parameter_list parameters) {
@@ -2208,9 +2214,9 @@ namespace computed_function {
         : exprtk::igeneric_function<t_tscalar>("T")
         , m_expression_vocab(expression_vocab)
         , m_is_type_validator(is_type_validator)
-        , m_source_table(source_table)
+        , m_source_table(std::move(std::move(source_table)))
         , m_row_idx(row_idx) {}
-    col::~col() {}
+    col::~col() = default;
 
     t_tscalar
     col::operator()(t_parameter_list parameters) {
@@ -2244,9 +2250,9 @@ namespace computed_function {
         : exprtk::igeneric_function<t_tscalar>("TT")
         , m_expression_vocab(expression_vocab)
         , m_is_type_validator(is_type_validator)
-        , m_source_table(source_table)
+        , m_source_table(std::move(std::move(source_table)))
         , m_row_idx(row_idx) {}
-    vlookup::~vlookup() {}
+    vlookup::~vlookup() = default;
 
     t_tscalar
     vlookup::operator()(t_parameter_list parameters) {
@@ -2310,7 +2316,7 @@ namespace computed_function {
     random::random()
         : exprtk::igeneric_function<t_tscalar>("Z") {}
 
-    random::~random() {}
+    random::~random() = default;
 
     t_tscalar
     random::operator()(t_parameter_list parameters) {
@@ -2319,5 +2325,4 @@ namespace computed_function {
         rval.set(random::DISTRIBUTION(random::RANDOM_ENGINE));
         return rval;
     }
-} // end namespace computed_function
-} // end namespace perspective
+    } // namespace perspective::computed_function

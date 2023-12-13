@@ -21,6 +21,7 @@
 #include "arrow/ipc/reader.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <cstring>
 #include <memory>
@@ -148,7 +149,7 @@ namespace ipc {
     /// cache-then-read strategy with a ReadRangeCache
     class BatchDataReadRequest {
     public:
-        const std::vector<io::ReadRange>&
+        [[nodiscard]] const std::vector<io::ReadRange>&
         ranges_to_read() const {
             return ranges_to_read_;
         }
@@ -214,12 +215,11 @@ namespace ipc {
                 return Status::Invalid("Buffer ", buffer_index_,
                     " did not start on 8-byte aligned offset: ", offset);
             }
-            if (file_) {
+            if (file_ != nullptr) {
                 return file_->ReadAt(offset, length).Value(out);
-            } else {
-                read_request_.RequestRange(offset + file_offset_, length, out);
-                return Status::OK();
             }
+            read_request_.RequestRange(offset + file_offset_, length, out);
+            return Status::OK();
         }
 
         Status
@@ -250,7 +250,7 @@ namespace ipc {
 
         Status
         GetBuffer(int buffer_index, std::shared_ptr<Buffer>* out) {
-            auto buffers = metadata_->buffers();
+            const auto* buffers = metadata_->buffers();
             CHECK_FLATBUFFERS_NOT_NULL(buffers, "RecordBatch.buffers");
             if (buffer_index >= static_cast<int>(buffers->size())) {
                 return Status::IOError("buffer_index out of range.");
@@ -260,14 +260,13 @@ namespace ipc {
                 // Should never return a null buffer here.
                 // (zero-sized buffer allocations are cheap)
                 return AllocateBuffer(0).Value(out);
-            } else {
-                return ReadBuffer(buffer->offset(), buffer->length(), out);
             }
+            return ReadBuffer(buffer->offset(), buffer->length(), out);
         }
 
         Status
         GetFieldMetadata(int field_index, ArrayData* out) {
-            auto nodes = metadata_->nodes();
+            const auto* nodes = metadata_->nodes();
             CHECK_FLATBUFFERS_NOT_NULL(nodes, "Table.nodes");
             // pop off a field
             if (field_index >= static_cast<int>(nodes->size())) {
@@ -294,7 +293,8 @@ namespace ipc {
                 // Extract null_bitmap which is common to all arrays except for
                 // unions and nulls.
                 if (out_->null_count != 0) {
-                    RETURN_NOT_OK(GetBuffer(buffer_index_, &out_->buffers[0]));
+                    RETURN_NOT_OK(
+                        GetBuffer(buffer_index_, out_->buffers.data()));
                 }
                 buffer_index_++;
             }
@@ -311,7 +311,7 @@ namespace ipc {
                 RETURN_NOT_OK(GetBuffer(buffer_index_++, &out_->buffers[1]));
             } else {
                 buffer_index_++;
-                out_->buffers[1].reset(new Buffer(nullptr, 0));
+                out_->buffers[1] = std::make_shared<Buffer>(nullptr, 0);
             }
             return Status::OK();
         }
@@ -570,9 +570,9 @@ namespace ipc {
         // PSP_PARALLEL_FOR works in wasm.
         // TODO: THIS ONE RIGHT HERE!
 
-        for (unsigned int i = 0; i < buffers.size(); ++i) {
-            ARROW_ASSIGN_OR_RAISE(*buffers[i],
-                DecompressBuffer(*buffers[i], options, codec.get()));
+        for (auto& buffer : buffers) {
+            ARROW_ASSIGN_OR_RAISE(
+                *buffer, DecompressBuffer(*buffer, options, codec.get()));
         }
         return Status::OK();
     }
@@ -592,7 +592,7 @@ namespace ipc {
 
         for (int i = 0; i < schema->num_fields(); ++i) {
             const Field& field = *schema->field(i);
-            if (!inclusion_mask || (*inclusion_mask)[i]) {
+            if ((inclusion_mask == nullptr) || (*inclusion_mask)[i]) {
                 // Read field
                 auto column = std::make_shared<ArrayData>();
                 RETURN_NOT_OK(loader.Load(&field, column.get()));
@@ -601,7 +601,7 @@ namespace ipc {
                         "Array length did not match record batch length");
                 }
                 columns[i] = std::move(column);
-                if (inclusion_mask) {
+                if (inclusion_mask != nullptr) {
                     filtered_columns.push_back(columns[i]);
                     filtered_fields.push_back(schema->field(i));
                 }
@@ -618,7 +618,7 @@ namespace ipc {
         RETURN_NOT_OK(ResolveDictionaries(
             columns, *context.dictionary_memo, context.options.memory_pool));
 
-        if (inclusion_mask) {
+        if (inclusion_mask != nullptr) {
             filtered_schema = ::arrow::schema(
                 std::move(filtered_fields), schema->metadata());
             columns.clear();
@@ -633,10 +633,9 @@ namespace ipc {
 
         // swap endian in a set of ArrayData if necessary (swap_endian == true)
         if (context.swap_endian) {
-            for (int i = 0; i < static_cast<int>(filtered_columns.size());
-                 ++i) {
-                ARROW_ASSIGN_OR_RAISE(filtered_columns[i],
-                    arrow::internal::SwapEndianArrayData(filtered_columns[i]));
+            for (auto& filtered_column : filtered_columns) {
+                ARROW_ASSIGN_OR_RAISE(filtered_column,
+                    arrow::internal::SwapEndianArrayData(filtered_column));
             }
         }
         return RecordBatch::Make(std::move(filtered_schema), metadata->length(),
@@ -648,13 +647,12 @@ namespace ipc {
         const std::shared_ptr<Schema>& schema,
         const std::vector<bool>& inclusion_mask, const IpcReadContext& context,
         io::RandomAccessFile* file) {
-        if (inclusion_mask.size() > 0) {
+        if (!inclusion_mask.empty()) {
             return LoadRecordBatchSubset(
                 metadata, schema, &inclusion_mask, context, file);
-        } else {
-            return LoadRecordBatchSubset(
-                metadata, schema, /*inclusion_mask=*/nullptr, context, file);
         }
+        return LoadRecordBatchSubset(
+            metadata, schema, /*inclusion_mask=*/nullptr, context, file);
     }
 
     // ----------------------------------------------------------------------
@@ -749,7 +747,7 @@ namespace ipc {
         const flatbuf::Message* message = nullptr;
         RETURN_NOT_OK(internal::VerifyMessage(
             metadata.data(), metadata.size(), &message));
-        auto batch = message->header_as_RecordBatch();
+        const auto* batch = message->header_as_RecordBatch();
         if (batch == nullptr) {
             return Status::IOError("Header-type of flatbuffer-encoded Message "
                                    "is not RecordBatch.");
@@ -804,8 +802,9 @@ namespace ipc {
                 return Status::Invalid("Out of bounds field index: ", i);
             }
 
-            if (inclusion_mask->at(i))
+            if (inclusion_mask->at(i)) {
                 continue;
+            }
 
             inclusion_mask->at(i) = true;
             included_fields.push_back(full_schema->field(i));
@@ -875,14 +874,15 @@ namespace ipc {
         const flatbuf::Message* message = nullptr;
         RETURN_NOT_OK(internal::VerifyMessage(
             metadata.data(), metadata.size(), &message));
-        const auto dictionary_batch = message->header_as_DictionaryBatch();
+        const auto* const dictionary_batch
+            = message->header_as_DictionaryBatch();
         if (dictionary_batch == nullptr) {
             return Status::IOError("Header-type of flatbuffer-encoded Message "
                                    "is not DictionaryBatch.");
         }
 
         // The dictionary is embedded in a record batch with a single column
-        const auto batch_meta = dictionary_batch->data();
+        const auto* const batch_meta = dictionary_batch->data();
 
         CHECK_FLATBUFFERS_NOT_NULL(batch_meta, "DictionaryBatch.data");
 
@@ -1017,12 +1017,12 @@ namespace ipc {
                 field_inclusion_mask_, context, reader.get());
         }
 
-        std::shared_ptr<Schema>
+        [[nodiscard]] std::shared_ptr<Schema>
         schema() const override {
             return out_schema_;
         }
 
-        ReadStats
+        [[nodiscard]] ReadStats
         stats() const override {
             return stats_;
         }
@@ -1089,13 +1089,11 @@ namespace ipc {
                         /// so the caller can decide what to do
                         empty_stream_ = true;
                         break;
-                    } else {
-                        // ARROW-6126, the stream terminated before receiving
-                        // the expected number of dictionaries
-                        return Status::Invalid("IPC stream ended without "
-                                               "reading the expected number (",
-                            num_dicts, ") of dictionaries");
-                    }
+                    } // ARROW-6126, the stream terminated before receiving
+                    // the expected number of dictionaries
+                    return Status::Invalid("IPC stream ended without "
+                                           "reading the expected number (",
+                        num_dicts, ") of dictionaries");
                 }
 
                 if (message->type() != MessageType::DICTIONARY_BATCH) {
@@ -1216,19 +1214,17 @@ namespace ipc {
         explicit WholeIpcFileRecordBatchGenerator(
             std::shared_ptr<RecordBatchFileReaderImpl> state,
             std::shared_ptr<io::internal::ReadRangeCache> cached_source,
-            const io::IOContext& io_context,
-            arrow::internal::Executor* executor)
+            io::IOContext io_context, arrow::internal::Executor* executor)
             : state_(std::move(state))
             , cached_source_(std::move(cached_source))
-            , io_context_(io_context)
-            , executor_(executor)
-            , index_(0) {}
+            , io_context_(std::move(io_context))
+            , executor_(executor) {}
 
         Future<Item> operator()();
         Future<std::shared_ptr<Message>> ReadBlock(const FileBlock& block);
 
         static Status ReadDictionaries(RecordBatchFileReaderImpl* state,
-            std::vector<std::shared_ptr<Message>> dictionary_messages);
+            const std::vector<std::shared_ptr<Message>>& dictionary_messages);
         static Result<std::shared_ptr<RecordBatch>> ReadRecordBatch(
             RecordBatchFileReaderImpl* state, Message* message);
 
@@ -1237,7 +1233,7 @@ namespace ipc {
         std::shared_ptr<io::internal::ReadRangeCache> cached_source_;
         io::IOContext io_context_;
         arrow::internal::Executor* executor_;
-        int index_;
+        int index_{0};
         // Odd Future type, but this lets us use All() easily
         Future<> read_dictionaries_;
     };
@@ -1252,22 +1248,18 @@ namespace ipc {
 
         explicit SelectiveIpcFileRecordBatchGenerator(
             std::shared_ptr<RecordBatchFileReaderImpl> state)
-            : state_(std::move(state))
-            , index_(0) {}
+            : state_(std::move(state)) {}
 
         Future<Item> operator()();
 
     private:
         std::shared_ptr<RecordBatchFileReaderImpl> state_;
-        int index_;
+        int index_{0};
     };
 
     class RecordBatchFileReaderImpl : public RecordBatchFileReader {
     public:
-        RecordBatchFileReaderImpl()
-            : file_(NULLPTR)
-            , footer_offset_(0)
-            , footer_(NULLPTR) {}
+        RecordBatchFileReaderImpl() {}
 
         int
         num_record_batches() const override {
@@ -1289,7 +1281,7 @@ namespace ipc {
             ArrayLoader loader(metadata, metadata_version, options, file);
             for (int i = 0; i < schema->num_fields(); ++i) {
                 const Field& field = *schema->field(i);
-                if (!inclusion_mask || (*inclusion_mask)[i]) {
+                if ((inclusion_mask == nullptr) || (*inclusion_mask)[i]) {
                     // Read field
                     ArrayData column;
                     RETURN_NOT_OK(loader.Load(&field, &column));
@@ -1390,7 +1382,7 @@ namespace ipc {
                 const flatbuf::Message* message = nullptr;
                 RETURN_NOT_OK(internal::VerifyMessage(
                     metadata->data(), metadata->size(), &message));
-                auto batch = message->header_as_RecordBatch();
+                const auto* batch = message->header_as_RecordBatch();
                 if (batch == nullptr) {
                     return Status::IOError("Header-type of flatbuffer-encoded "
                                            "Message is not RecordBatch.");
@@ -1454,7 +1446,7 @@ namespace ipc {
             file_ = file;
             options_ = options;
             footer_offset_ = footer_offset;
-            auto cpu_executor = ::arrow::internal::GetCpuThreadPool();
+            auto* cpu_executor = ::arrow::internal::GetCpuThreadPool();
             auto self = std::dynamic_pointer_cast<RecordBatchFileReaderImpl>(
                 shared_from_this());
             return ReadFooterAsync(cpu_executor)
@@ -1499,7 +1491,7 @@ namespace ipc {
             // Prebuffering's read patterns are also slightly worse than the
             // alternative when doing whole-file reads because the logic is not
             // in place to recognize we can just read the entire file up-front
-            if (options_.included_fields.size() != 0
+            if (!options_.included_fields.empty()
                 && options_.included_fields.size() != schema_->fields().size()
                 && !file_->supports_zero_copy()) {
                 RETURN_NOT_OK(state->PreBufferMetadata({}));
@@ -1508,9 +1500,10 @@ namespace ipc {
 
             std::shared_ptr<io::internal::ReadRangeCache> cached_source;
             if (coalesce && !file_->supports_zero_copy()) {
-                if (!owned_file_)
+                if (!owned_file_) {
                     return Status::Invalid(
                         "Cannot coalesce without an owned file");
+                }
                 // Since the user is asking for all fields then we can cache the
                 // entire file (up to the footer)
                 cached_source = std::make_shared<io::internal::ReadRangeCache>(
@@ -1553,11 +1546,10 @@ namespace ipc {
 
         Status
         PreBufferMetadata(const std::vector<int>& indices) override {
-            if (indices.size() == 0) {
+            if (indices.empty()) {
                 return DoPreBufferMetadata(AllIndices());
-            } else {
-                return DoPreBufferMetadata(indices);
             }
+            return DoPreBufferMetadata(indices);
         }
 
     private:
@@ -1632,7 +1624,8 @@ namespace ipc {
             if (kind == DictionaryKind::Replacement) {
                 return Status::Invalid(
                     "Unsupported dictionary replacement in IPC file");
-            } else if (kind == DictionaryKind::Delta) {
+            }
+            if (kind == DictionaryKind::Delta) {
                 stats_.num_dictionary_deltas.fetch_add(
                     1, std::memory_order_relaxed);
             }
@@ -1721,9 +1714,9 @@ namespace ipc {
             return std::move(context);
         }
 
-        Result<const flatbuf::RecordBatch*>
+        static Result<const flatbuf::RecordBatch*>
         GetBatchFromMessage(const flatbuf::Message* message) {
-            auto batch = message->header_as_RecordBatch();
+            const auto* batch = message->header_as_RecordBatch();
             if (batch == nullptr) {
                 return Status::IOError("Header-type of flatbuffer-encoded "
                                        "Message is not RecordBatch.");
@@ -1731,7 +1724,7 @@ namespace ipc {
             return batch;
         }
 
-        Result<const flatbuf::Message*>
+        static Result<const flatbuf::Message*>
         GetFlatbufMessage(const std::shared_ptr<Message>& message) {
             const Buffer& metadata = *message->metadata();
             const flatbuf::Message* flatbuf_message = nullptr;
@@ -1747,7 +1740,7 @@ namespace ipc {
                 std::shared_ptr<io::RandomAccessFile> owned_file,
                 int64_t block_data_offset)
                 : schema(std::move(sch))
-                , context(std::move(context))
+                , context(context)
                 , file(file)
                 , owned_file(std::move(owned_file))
                 , loader(batch, context.metadata_version, context.options,
@@ -1766,7 +1759,7 @@ namespace ipc {
 
                 for (int i = 0; i < schema->num_fields(); ++i) {
                     const Field& field = *schema->field(i);
-                    if (inclusion_mask.size() == 0 || inclusion_mask[i]) {
+                    if (inclusion_mask.empty() || inclusion_mask[i]) {
                         // Read field
                         auto column = std::make_shared<ArrayData>();
                         RETURN_NOT_OK(loader.Load(&field, column.get()));
@@ -1775,7 +1768,7 @@ namespace ipc {
                                                    "record batch length");
                         }
                         columns[i] = std::move(column);
-                        if (inclusion_mask.size() > 0) {
+                        if (!inclusion_mask.empty()) {
                             filtered_columns.push_back(columns[i]);
                             filtered_fields.push_back(schema->field(i));
                         }
@@ -1785,7 +1778,7 @@ namespace ipc {
                         RETURN_NOT_OK(loader.SkipField(&field));
                     }
                 }
-                if (inclusion_mask.size() > 0) {
+                if (!inclusion_mask.empty()) {
                     filtered_schema = ::arrow::schema(
                         std::move(filtered_fields), schema->metadata());
                 } else {
@@ -1817,7 +1810,7 @@ namespace ipc {
                 // the original schema).
                 RETURN_NOT_OK(ResolveDictionaries(columns,
                     *context.dictionary_memo, context.options.memory_pool));
-                if (inclusion_mask.size() > 0) {
+                if (!inclusion_mask.empty()) {
                     columns.clear();
                 } else {
                     filtered_columns = std::move(columns);
@@ -1831,11 +1824,10 @@ namespace ipc {
                 // swap endian in a set of ArrayData if necessary (swap_endian
                 // == true)
                 if (context.swap_endian) {
-                    for (int i = 0;
-                         i < static_cast<int>(filtered_columns.size()); ++i) {
-                        ARROW_ASSIGN_OR_RAISE(filtered_columns[i],
+                    for (auto& filtered_column : filtered_columns) {
+                        ARROW_ASSIGN_OR_RAISE(filtered_column,
                             arrow::internal::SwapEndianArrayData(
-                                filtered_columns[i]));
+                                filtered_column));
                     }
                 }
                 return RecordBatch::Make(std::move(filtered_schema), length,
@@ -1859,7 +1851,7 @@ namespace ipc {
 
         Future<std::shared_ptr<RecordBatch>>
         ReadCachedRecordBatch(
-            int index, Future<std::shared_ptr<Message>> message_fut) {
+            int index, const Future<std::shared_ptr<Message>>& message_fut) {
             stats_.num_record_batches.fetch_add(1, std::memory_order_relaxed);
             return dictionary_load_finished_
                 .Then([message_fut] { return message_fut; })
@@ -1875,8 +1867,7 @@ namespace ipc {
 
                     auto read_context
                         = std::make_shared<CachedRecordBatchReadContext>(
-                            schema_, batch, std::move(context), file_,
-                            owned_file_,
+                            schema_, batch, context, file_, owned_file_,
                             block.offset
                                 + static_cast<int64_t>(block.metadata_length));
                     RETURN_NOT_OK(read_context->CalculateLoadRequest());
@@ -1894,8 +1885,8 @@ namespace ipc {
 
         Future<>
         ReadFooterAsync(arrow::internal::Executor* executor) {
-            const int32_t magic_size
-                = static_cast<int>(strlen(kArrowMagicBytes));
+            const auto magic_size
+                = static_cast<std::int64_t>(strlen(kArrowMagicBytes));
 
             if (footer_offset_ <= magic_size * 2 + 4) {
                 return Status::Invalid("File is too small: ", footer_offset_);
@@ -1906,8 +1897,9 @@ namespace ipc {
                 shared_from_this());
             auto read_magic = file_->ReadAsync(
                 footer_offset_ - file_end_size, file_end_size);
-            if (executor)
+            if (executor != nullptr) {
                 read_magic = executor->Transfer(std::move(read_magic));
+            }
             return read_magic
                 .Then([=](const std::shared_ptr<Buffer>& buffer)
                           -> Future<std::shared_ptr<Buffer>> {
@@ -1919,7 +1911,8 @@ namespace ipc {
                     }
 
                     if (memcmp(buffer->data() + sizeof(int32_t),
-                            kArrowMagicBytes, magic_size)) {
+                            kArrowMagicBytes, magic_size)
+                        != 0) {
                         return Status::Invalid("Not an Arrow file");
                     }
 
@@ -1937,14 +1930,15 @@ namespace ipc {
                     auto read_footer = self->file_->ReadAsync(
                         self->footer_offset_ - footer_length - file_end_size,
                         footer_length);
-                    if (executor)
+                    if (executor != nullptr) {
                         read_footer
                             = executor->Transfer(std::move(read_footer));
+                    }
                     return read_footer;
                 })
                 .Then([=](const std::shared_ptr<Buffer>& buffer) -> Status {
                     self->footer_buffer_ = buffer;
-                    const auto data = self->footer_buffer_->data();
+                    const auto* data = self->footer_buffer_->data();
                     const auto size = self->footer_buffer_->size();
                     if (!internal::VerifyFlatbuffers<flatbuf::Footer>(
                             data, size)) {
@@ -1954,7 +1948,7 @@ namespace ipc {
                     }
                     self->footer_ = flatbuf::GetFooter(data);
 
-                    auto fb_metadata = self->footer_->custom_metadata();
+                    const auto* fb_metadata = self->footer_->custom_metadata();
                     if (fb_metadata != nullptr) {
                         std::shared_ptr<KeyValueMetadata> md;
                         RETURN_NOT_OK(
@@ -1979,11 +1973,11 @@ namespace ipc {
 
         // The location where the Arrow file layout ends. May be the end of the
         // file or some other location if embedded in a larger file.
-        int64_t footer_offset_;
+        int64_t footer_offset_{0};
 
         // Footer metadata
         std::shared_ptr<Buffer> footer_buffer_;
-        const flatbuf::Footer* footer_;
+        const flatbuf::Footer* footer_{NULLPTR};
         std::shared_ptr<const KeyValueMetadata> metadata_;
 
         bool read_dictionaries_ = false;
@@ -2042,7 +2036,7 @@ namespace ipc {
         const std::shared_ptr<io::RandomAccessFile>& file,
         const IpcReadOptions& options) {
         ARROW_ASSIGN_OR_RAISE(int64_t footer_offset, file->GetSize());
-        return OpenAsync(std::move(file), footer_offset, options);
+        return OpenAsync(file, footer_offset, options);
     }
 
     Future<std::shared_ptr<RecordBatchFileReader>>
@@ -2094,8 +2088,9 @@ namespace ipc {
                 messages[i] = ReadBlock(block);
             }
             auto read_messages = All(std::move(messages));
-            if (executor_)
+            if (executor_ != nullptr) {
                 read_messages = executor_->Transfer(read_messages);
+            }
             read_dictionaries_ = read_messages.Then(
                 [=](const std::vector<Result<std::shared_ptr<Message>>>&
                         maybe_messages) -> Status {
@@ -2116,8 +2111,8 @@ namespace ipc {
         // get off the I/O threads as soon as possible, and ensures we don't
         // decode record batches synchronously in the case that the message read
         // has already finished.
-        if (executor_) {
-            auto executor = executor_;
+        if (executor_ != nullptr) {
+            auto* executor = executor_;
             return read_messages.Then(
                 [=](const std::shared_ptr<Message>& message) -> Future<Item> {
                     return DeferNotOk(executor->Submit([=]() {
@@ -2137,7 +2132,7 @@ namespace ipc {
             auto cached_source = cached_source_;
             io::ReadRange range{
                 block.offset, block.metadata_length + block.body_length};
-            auto pool = state_->options_.memory_pool;
+            auto* pool = state_->options_.memory_pool;
             return cached_source->WaitFor({range}).Then(
                 [cached_source, pool,
                     range]() -> Result<std::shared_ptr<Message>> {
@@ -2146,15 +2141,14 @@ namespace ipc {
                     io::BufferReader stream(std::move(buffer));
                     return ReadMessage(&stream, pool);
                 });
-        } else {
-            return ReadMessageFromBlockAsync(block, state_->file_, io_context_);
         }
+        return ReadMessageFromBlockAsync(block, state_->file_, io_context_);
     }
 
     Status
     WholeIpcFileRecordBatchGenerator::ReadDictionaries(
         RecordBatchFileReaderImpl* state,
-        std::vector<std::shared_ptr<Message>> dictionary_messages) {
+        const std::vector<std::shared_ptr<Message>>& dictionary_messages) {
         IpcReadContext context(
             &state->dictionary_memo_, state->options_, state->swap_endian_);
         for (const auto& message : dictionary_messages) {
@@ -2206,11 +2200,9 @@ namespace ipc {
             std::shared_ptr<Listener> listener, IpcReadOptions options)
             : listener_(std::move(listener))
             , options_(std::move(options))
-            , state_(State::SCHEMA)
             , message_decoder_(
                   std::shared_ptr<StreamDecoderImpl>(this, [](void*) {}),
-                  options_.memory_pool)
-            , n_required_dictionaries_(0) {}
+                  options_.memory_pool) {}
 
         Status
         OnMessageDecoded(std::unique_ptr<Message> message) override {
@@ -2250,17 +2242,17 @@ namespace ipc {
             return message_decoder_.Consume(std::move(buffer));
         }
 
-        std::shared_ptr<Schema>
+        [[nodiscard]] std::shared_ptr<Schema>
         schema() const {
             return out_schema_;
         }
 
-        int64_t
+        [[nodiscard]] int64_t
         next_required_size() const {
             return message_decoder_.next_required_size();
         }
 
-        ReadStats
+        [[nodiscard]] ReadStats
         stats() const {
             return stats_;
         }
@@ -2303,19 +2295,17 @@ namespace ipc {
         OnRecordBatchMessageDecoded(std::unique_ptr<Message> message) {
             if (message->type() == MessageType::DICTIONARY_BATCH) {
                 return ReadDictionary(*message);
-            } else {
-                CHECK_HAS_BODY(*message);
-                ARROW_ASSIGN_OR_RAISE(
-                    auto reader, Buffer::GetReader(message->body()));
-                IpcReadContext context(
-                    &dictionary_memo_, options_, swap_endian_);
-                ARROW_ASSIGN_OR_RAISE(auto batch_with_metadata,
-                    ReadRecordBatchInternal(*message->metadata(), schema_,
-                        field_inclusion_mask_, context, reader.get()));
-                ++stats_.num_record_batches;
-                return listener_->OnRecordBatchDecoded(
-                    std::move(batch_with_metadata.batch));
             }
+            CHECK_HAS_BODY(*message);
+            ARROW_ASSIGN_OR_RAISE(
+                auto reader, Buffer::GetReader(message->body()));
+            IpcReadContext context(&dictionary_memo_, options_, swap_endian_);
+            ARROW_ASSIGN_OR_RAISE(auto batch_with_metadata,
+                ReadRecordBatchInternal(*message->metadata(), schema_,
+                    field_inclusion_mask_, context, reader.get()));
+            ++stats_.num_record_batches;
+            return listener_->OnRecordBatchDecoded(
+                std::move(batch_with_metadata.batch));
         }
 
         // Read dictionary from dictionary batch
@@ -2341,10 +2331,10 @@ namespace ipc {
 
         std::shared_ptr<Listener> listener_;
         const IpcReadOptions options_;
-        State state_;
+        State state_{State::SCHEMA};
         MessageDecoder message_decoder_;
         std::vector<bool> field_inclusion_mask_;
-        int n_required_dictionaries_;
+        int n_required_dictionaries_{0};
         DictionaryMemo dictionary_memo_;
         std::shared_ptr<Schema> schema_, out_schema_;
         ReadStats stats_;
@@ -2353,10 +2343,11 @@ namespace ipc {
 
     StreamDecoder::StreamDecoder(
         std::shared_ptr<Listener> listener, IpcReadOptions options) {
-        impl_.reset(new StreamDecoderImpl(std::move(listener), options));
+        impl_ = std::make_unique<StreamDecoderImpl>(
+            std::move(listener), std::move(options));
     }
 
-    StreamDecoder::~StreamDecoder() {}
+    StreamDecoder::~StreamDecoder() = default;
 
     Status
     StreamDecoder::Consume(const uint8_t* data, int64_t size) {
@@ -2428,7 +2419,7 @@ namespace ipc {
         ReadSparseCOOIndex(const flatbuf::SparseTensor* sparse_tensor,
             const std::vector<int64_t>& shape, int64_t non_zero_length,
             io::RandomAccessFile* file) {
-            auto* sparse_index
+            const auto* sparse_index
                 = sparse_tensor->sparseIndex_as_SparseTensorIndexCOO();
             const auto ndim = static_cast<int64_t>(shape.size());
 
@@ -2437,14 +2428,14 @@ namespace ipc {
                 sparse_index, &indices_type));
             const int64_t indices_elsize = indices_type->byte_width();
 
-            auto* indices_buffer = sparse_index->indicesBuffer();
+            const auto* indices_buffer = sparse_index->indicesBuffer();
             ARROW_ASSIGN_OR_RAISE(auto indices_data,
                 file->ReadAt(
                     indices_buffer->offset(), indices_buffer->length()));
             std::vector<int64_t> indices_shape({non_zero_length, ndim});
-            auto* indices_strides = sparse_index->indicesStrides();
+            const auto* indices_strides = sparse_index->indicesStrides();
             std::vector<int64_t> strides(2);
-            if (indices_strides && indices_strides->size() > 0) {
+            if ((indices_strides != nullptr) && indices_strides->size() > 0) {
                 if (indices_strides->size() != 2) {
                     return Status::Invalid(
                         "Wrong size for indicesStrides in SparseCOOIndex");
@@ -2471,19 +2462,20 @@ namespace ipc {
                     "Invalid shape length for a sparse matrix");
             }
 
-            auto* sparse_index
+            const auto* sparse_index
                 = sparse_tensor->sparseIndex_as_SparseMatrixIndexCSX();
 
-            std::shared_ptr<DataType> indptr_type, indices_type;
+            std::shared_ptr<DataType> indptr_type;
+            std::shared_ptr<DataType> indices_type;
             RETURN_NOT_OK(internal::GetSparseCSXIndexMetadata(
                 sparse_index, &indptr_type, &indices_type));
             const int indptr_byte_width = indptr_type->byte_width();
 
-            auto* indptr_buffer = sparse_index->indptrBuffer();
+            const auto* indptr_buffer = sparse_index->indptrBuffer();
             ARROW_ASSIGN_OR_RAISE(auto indptr_data,
                 file->ReadAt(indptr_buffer->offset(), indptr_buffer->length()));
 
-            auto* indices_buffer = sparse_index->indicesBuffer();
+            const auto* indices_buffer = sparse_index->indicesBuffer();
             ARROW_ASSIGN_OR_RAISE(auto indices_data,
                 file->ReadAt(
                     indices_buffer->offset(), indices_buffer->length()));
@@ -2534,16 +2526,18 @@ namespace ipc {
         Result<std::shared_ptr<SparseIndex>>
         ReadSparseCSFIndex(const flatbuf::SparseTensor* sparse_tensor,
             const std::vector<int64_t>& shape, io::RandomAccessFile* file) {
-            auto* sparse_index
+            const auto* sparse_index
                 = sparse_tensor->sparseIndex_as_SparseTensorIndexCSF();
             const auto ndim = static_cast<int64_t>(shape.size());
-            auto* indptr_buffers = sparse_index->indptrBuffers();
-            auto* indices_buffers = sparse_index->indicesBuffers();
+            const auto* indptr_buffers = sparse_index->indptrBuffers();
+            const auto* indices_buffers = sparse_index->indicesBuffers();
             std::vector<std::shared_ptr<Buffer>> indptr_data(ndim - 1);
             std::vector<std::shared_ptr<Buffer>> indices_data(ndim);
 
-            std::shared_ptr<DataType> indptr_type, indices_type;
-            std::vector<int64_t> axis_order, indices_size;
+            std::shared_ptr<DataType> indptr_type;
+            std::shared_ptr<DataType> indices_type;
+            std::vector<int64_t> axis_order;
+            std::vector<int64_t> indices_size;
 
             RETURN_NOT_OK(internal::GetSparseCSFIndexMetadata(sparse_index,
                 &axis_order, &indices_size, &indptr_type, &indices_type));
@@ -2623,14 +2617,14 @@ namespace ipc {
             RETURN_NOT_OK(internal::VerifyMessage(
                 metadata.data(), metadata.size(), &message));
 
-            auto sparse_tensor = message->header_as_SparseTensor();
+            const auto* sparse_tensor = message->header_as_SparseTensor();
             if (sparse_tensor == nullptr) {
                 return Status::IOError("Header-type of flatbuffer-encoded "
                                        "Message is not SparseTensor.");
             }
             *out_fb_sparse_tensor = sparse_tensor;
 
-            auto buffer = sparse_tensor->data();
+            const auto* buffer = sparse_tensor->data();
             if (!bit_util::IsMultipleOf8(buffer->offset())) {
                 return Status::Invalid("Buffer of sparse index data did not "
                                        "start on 8-byte aligned offset: ",
@@ -2764,8 +2758,10 @@ namespace ipc {
                 }
                 case SparseTensorFormat::CSF: {
                     std::shared_ptr<SparseCSFIndex> sparse_index;
-                    std::shared_ptr<DataType> indptr_type, indices_type;
-                    std::vector<int64_t> axis_order, indices_size;
+                    std::shared_ptr<DataType> indptr_type;
+                    std::shared_ptr<DataType> indices_type;
+                    std::vector<int64_t> axis_order;
+                    std::vector<int64_t> indices_size;
 
                     RETURN_NOT_OK(internal::GetSparseCSFIndexMetadata(
                         sparse_tensor->sparseIndex_as_SparseTensorIndexCSF(),

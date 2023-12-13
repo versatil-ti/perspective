@@ -12,30 +12,29 @@
 
 #include <perspective/arrow_loader.h>
 
-namespace perspective {
-namespace apachearrow {
+namespace perspective::apachearrow {
 
-    void
-    load_stream(const uintptr_t ptr, const uint32_t length,
-        std::shared_ptr<arrow::Table>& table) {
-        arrow::io::BufferReader buffer_reader(
-            reinterpret_cast<const std::uint8_t*>(ptr), length);
-        auto status = arrow::ipc::RecordBatchStreamReader::Open(&buffer_reader);
-        if (!status.ok()) {
+void
+load_stream(const uintptr_t ptr, const uint32_t length,
+    std::shared_ptr<arrow::Table>& table) {
+    arrow::io::BufferReader buffer_reader(
+        reinterpret_cast<const std::uint8_t*>(ptr), length);
+    auto status = arrow::ipc::RecordBatchStreamReader::Open(&buffer_reader);
+    if (!status.ok()) {
+        std::stringstream ss;
+        ss << "Failed to open RecordBatchStreamReader: "
+           << status.status().ToString() << std::endl;
+        PSP_COMPLAIN_AND_ABORT(ss.str());
+    } else {
+        auto batch_reader = *status;
+        auto status5 = batch_reader->ReadAll(&table);
+        if (!status5.ok()) {
             std::stringstream ss;
-            ss << "Failed to open RecordBatchStreamReader: "
-               << status.status().ToString() << std::endl;
+            ss << "Failed to read stream record batch: " << status5.ToString()
+               << std::endl;
             PSP_COMPLAIN_AND_ABORT(ss.str());
-        } else {
-            auto batch_reader = *status;
-            auto status5 = batch_reader->ReadAll(&table);
-            if (!status5.ok()) {
-                std::stringstream ss;
-                ss << "Failed to read stream record batch: "
-                   << status5.ToString() << std::endl;
-                PSP_COMPLAIN_AND_ABORT(ss.str());
-            };
-        }
+        };
+    }
     }
 
     void
@@ -78,15 +77,16 @@ namespace apachearrow {
 
     using namespace perspective;
 
-    ArrowLoader::ArrowLoader() {}
-    ArrowLoader::~ArrowLoader() {}
+    ArrowLoader::ArrowLoader() = default;
+    ArrowLoader::~ArrowLoader() = default;
 
     t_dtype
     convert_type(const std::string& src) {
         if (src == "dictionary" || src == "utf8" || src == "binary"
             || src == "large_utf8") {
             return DTYPE_STR;
-        } else if (src == "bool") {
+        }
+        if (src == "bool") {
             return DTYPE_BOOL;
         } else if (src == "int8") {
             return DTYPE_INT8;
@@ -135,7 +135,7 @@ namespace apachearrow {
         std::shared_ptr<arrow::Schema> schema = m_table->schema();
         std::vector<std::shared_ptr<arrow::Field>> fields = schema->fields();
 
-        for (auto field : fields) {
+        for (const auto& field : fields) {
             m_names.push_back(field->name());
             m_types.push_back(convert_type(field->type()->name()));
         }
@@ -150,7 +150,7 @@ namespace apachearrow {
         std::shared_ptr<arrow::Schema> schema = m_table->schema();
         std::vector<std::shared_ptr<arrow::Field>> fields = schema->fields();
 
-        for (auto field : fields) {
+        for (const auto& field : fields) {
             m_names.push_back(field->name());
             m_types.push_back(convert_type(field->type()->name()));
         }
@@ -192,12 +192,12 @@ namespace apachearrow {
 
         // Fill index column - recreated every time a `t_data_table` is created.
         if (!implicit_index) {
-            if (index == "") {
+            if (index.empty()) {
                 // Use row number as index if not explicitly provided or
                 // provided with
                 // `__INDEX__`
-                auto key_col = tbl.add_column("psp_pkey", DTYPE_INT32, true);
-                auto okey_col = tbl.add_column("psp_okey", DTYPE_INT32, true);
+                auto* key_col = tbl.add_column("psp_pkey", DTYPE_INT32, true);
+                auto* okey_col = tbl.add_column("psp_okey", DTYPE_INT32, true);
 
                 for (std::uint32_t ridx = 0; ridx < tbl.size(); ++ridx) {
                     key_col->set_nth<std::int32_t>(
@@ -233,8 +233,8 @@ namespace apachearrow {
     }
 
     void
-    copy_array(std::shared_ptr<t_column> dest,
-        std::shared_ptr<arrow::Array> src, const int64_t offset,
+    copy_array(const std::shared_ptr<t_column>& dest,
+        const std::shared_ptr<arrow::Array>& src, const int64_t offset,
         const int64_t len) {
         switch (src->type()->id()) {
             case arrow::DictionaryType::type_id: {
@@ -459,7 +459,7 @@ namespace apachearrow {
             case arrow::DecimalType::type_id: {
                 std::shared_ptr<arrow::Decimal128Array> scol
                     = std::static_pointer_cast<arrow::DecimalArray>(src);
-                auto vals = (arrow::Decimal128*)scol->raw_values();
+                auto* vals = (arrow::Decimal128*)scol->raw_values();
                 for (uint32_t i = 0; i < len; ++i) {
                     arrow::Status status
                         = vals[i].ToInteger(dest->get_nth<int64_t>(offset + i));
@@ -475,7 +475,7 @@ namespace apachearrow {
                 const uint8_t* null_bitmap = scol->values()->data();
                 for (uint32_t i = 0; i < len; ++i) {
                     std::uint8_t elem = null_bitmap[i / 8];
-                    bool v = elem & (1 << (i % 8));
+                    bool v = (elem & (1 << (i % 8))) != 0;
                     dest->set_nth<bool>(offset + i, v);
                 }
             } break;
@@ -537,9 +537,10 @@ namespace apachearrow {
     }
 
     void
-    ArrowLoader::fill_column(t_data_table& tbl, std::shared_ptr<t_column> col,
-        const std::string& name, std::int32_t cidx, t_dtype type,
-        std::string& raw_type, bool is_update) {
+    ArrowLoader::fill_column(t_data_table& tbl,
+        const std::shared_ptr<t_column>& col, const std::string& name,
+        std::int32_t cidx, t_dtype type, std::string& raw_type,
+        bool is_update) {
         int64_t offset = 0;
         std::shared_ptr<arrow::ChunkedArray> carray
             = m_table->GetColumnByName(name);
@@ -610,13 +611,13 @@ namespace apachearrow {
 
                 // If the arrow column is of null type, the null bitmap is
                 // a nullptr - so just mark everything as invalid and move on.
-                if (null_bitmap == NULL) {
+                if (null_bitmap == nullptr) {
                     col->invalid_raw_fill();
                 } else {
                     // Read the null bitmap and set the correct rows as valid
                     for (uint32_t i = 0; i < len; ++i) {
                         std::uint8_t elem = null_bitmap[i / 8];
-                        bool v = elem & (1 << (i % 8));
+                        bool v = (elem & (1 << (i % 8))) != 0;
                         col->set_valid(offset + i, v);
                     }
                 }
@@ -643,5 +644,4 @@ namespace apachearrow {
         return m_types;
     }
 
-} // namespace apachearrow
-} // namespace perspective
+    } // namespace perspective::apachearrow

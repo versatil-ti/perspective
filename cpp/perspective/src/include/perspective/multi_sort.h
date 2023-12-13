@@ -26,9 +26,9 @@ struct PERSPECTIVE_EXPORT t_mselem {
     t_mselem(const std::vector<t_tscalar>& row, t_uindex order);
     t_mselem(const t_tscalar& pkey, const std::vector<t_tscalar>& row);
     t_mselem(const t_mselem& other);
-    t_mselem(t_mselem&& other);
+    t_mselem(t_mselem&& other) noexcept;
     t_mselem& operator=(const t_mselem& other);
-    t_mselem& operator=(t_mselem&& other);
+    t_mselem& operator=(t_mselem&& other) noexcept;
 
     std::vector<t_tscalar> m_row;
     t_tscalar m_pkey;

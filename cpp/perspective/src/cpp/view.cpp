@@ -14,6 +14,7 @@
 #include <perspective/view.h>
 #include <perspective/arrow_writer.h>
 #include <sstream>
+#include <utility>
 #include <rapidjson/writer.h>
 #include <rapidjson/stringbuffer.h>
 
@@ -27,7 +28,8 @@ join_column_names(
     const std::vector<t_tscalar>& names, const std::string& separator) {
     if (names.size() == 0) {
         return "";
-    } else if (names.size() == 1) {
+    }
+    if (names.size() == 1) {
         return names.at(0).to_string();
     } else {
         std::ostringstream ss;
@@ -43,12 +45,12 @@ join_column_names(
 
 template <typename CTX_T>
 View<CTX_T>::View(std::shared_ptr<Table> table, std::shared_ptr<CTX_T> ctx,
-    const std::string& name, const std::string& separator,
+    std::string name, std::string separator,
     std::shared_ptr<t_view_config> view_config)
     : m_table(table)
     , m_ctx(ctx)
-    , m_name(name)
-    , m_separator(separator)
+    , m_name(std::move(name))
+    , m_separator(std::move(separator))
     , m_view_config(view_config) {
     m_row_pivots = m_view_config->get_row_pivots();
     m_column_pivots = m_view_config->get_column_pivots();
@@ -650,9 +652,9 @@ View<CTX_T>::data_slice_to_batches(
                               if (rpidx < depth) {
                                   return m_ctx->unity_get_row_path(ridx).at(
                                       (depth - 1) - rpidx);
-                              } else {
-                                  return mknone();
                               }
+                              return mknone();
+                             
                           });
                 } break;
                 case DTYPE_UINT8: {
@@ -665,9 +667,9 @@ View<CTX_T>::data_slice_to_batches(
                               if (rpidx < depth) {
                                   return m_ctx->unity_get_row_path(ridx).at(
                                       (depth - 1) - rpidx);
-                              } else {
-                                  return mknone();
                               }
+                              return mknone();
+                             
                           });
                 } break;
                 case DTYPE_INT16: {
@@ -680,9 +682,9 @@ View<CTX_T>::data_slice_to_batches(
                               if (rpidx < depth) {
                                   return m_ctx->unity_get_row_path(ridx).at(
                                       (depth - 1) - rpidx);
-                              } else {
-                                  return mknone();
                               }
+                              return mknone();
+                             
                           });
                 } break;
                 case DTYPE_UINT16: {
@@ -695,9 +697,9 @@ View<CTX_T>::data_slice_to_batches(
                               if (rpidx < depth) {
                                   return m_ctx->unity_get_row_path(ridx).at(
                                       (depth - 1) - rpidx);
-                              } else {
-                                  return mknone();
                               }
+                              return mknone();
+                             
                           });
                 } break;
                 case DTYPE_INT32: {
@@ -710,9 +712,9 @@ View<CTX_T>::data_slice_to_batches(
                               if (rpidx < depth) {
                                   return m_ctx->unity_get_row_path(ridx).at(
                                       (depth - 1) - rpidx);
-                              } else {
-                                  return mknone();
                               }
+                              return mknone();
+                             
                           });
                 } break;
                 case DTYPE_UINT32: {
@@ -725,9 +727,9 @@ View<CTX_T>::data_slice_to_batches(
                               if (rpidx < depth) {
                                   return m_ctx->unity_get_row_path(ridx).at(
                                       (depth - 1) - rpidx);
-                              } else {
-                                  return mknone();
                               }
+                              return mknone();
+                             
                           });
                 } break;
                 case DTYPE_INT64: {
@@ -740,9 +742,9 @@ View<CTX_T>::data_slice_to_batches(
                               if (rpidx < depth) {
                                   return m_ctx->unity_get_row_path(ridx).at(
                                       (depth - 1) - rpidx);
-                              } else {
-                                  return mknone();
                               }
+                              return mknone();
+                             
                           });
                 } break;
                 case DTYPE_UINT64: {
@@ -755,9 +757,9 @@ View<CTX_T>::data_slice_to_batches(
                               if (rpidx < depth) {
                                   return m_ctx->unity_get_row_path(ridx).at(
                                       (depth - 1) - rpidx);
-                              } else {
-                                  return mknone();
                               }
+                              return mknone();
+                             
                           });
                 } break;
                 case DTYPE_FLOAT32: {
@@ -770,9 +772,9 @@ View<CTX_T>::data_slice_to_batches(
                               if (rpidx < depth) {
                                   return m_ctx->unity_get_row_path(ridx).at(
                                       (depth - 1) - rpidx);
-                              } else {
-                                  return mknone();
                               }
+                              return mknone();
+                             
                           });
                 } break;
                 case DTYPE_FLOAT64: {
@@ -785,9 +787,9 @@ View<CTX_T>::data_slice_to_batches(
                               if (rpidx < depth) {
                                   return m_ctx->unity_get_row_path(ridx).at(
                                       (depth - 1) - rpidx);
-                              } else {
-                                  return mknone();
                               }
+                              return mknone();
+                             
                           });
                 } break;
                 case DTYPE_DATE: {
@@ -799,9 +801,9 @@ View<CTX_T>::data_slice_to_batches(
                             if (rpidx < depth) {
                                 return m_ctx->unity_get_row_path(ridx).at(
                                     (depth - 1) - rpidx);
-                            } else {
-                                return mknone();
                             }
+                            return mknone();
+                           
                         });
                 } break;
                 case DTYPE_TIME: {
@@ -813,9 +815,9 @@ View<CTX_T>::data_slice_to_batches(
                             if (rpidx < depth) {
                                 return m_ctx->unity_get_row_path(ridx).at(
                                     (depth - 1) - rpidx);
-                            } else {
-                                return mknone();
                             }
+                            return mknone();
+                           
                         });
                 } break;
                 case DTYPE_BOOL: {
@@ -827,9 +829,9 @@ View<CTX_T>::data_slice_to_batches(
                             if (rpidx < depth) {
                                 return m_ctx->unity_get_row_path(ridx).at(
                                     (depth - 1) - rpidx);
-                            } else {
-                                return mknone();
                             }
+                            return mknone();
+                           
                         });
                 } break;
                 case DTYPE_STR: {
@@ -842,9 +844,9 @@ View<CTX_T>::data_slice_to_batches(
                                 if (rpidx < depth) {
                                     return m_ctx->unity_get_row_path(ridx).at(
                                         (depth - 1) - rpidx);
-                                } else {
-                                    return mknone();
                                 }
+                                return mknone();
+                               
                             });
                 } break;
                 case DTYPE_OBJECT:

@@ -70,9 +70,10 @@ namespace apachearrow {
         std::uint32_t row_count() const;
 
     private:
-        void fill_column(t_data_table& tbl, std::shared_ptr<t_column> col,
-            const std::string& name, std::int32_t cidx, t_dtype type,
-            std::string& raw_type, bool is_update);
+        void fill_column(t_data_table& tbl,
+            const std::shared_ptr<t_column>& col, const std::string& name,
+            std::int32_t cidx, t_dtype type, std::string& raw_type,
+            bool is_update);
 
         std::shared_ptr<arrow::Table> m_table;
         std::vector<std::string> m_names;
@@ -84,8 +85,8 @@ namespace apachearrow {
         std::shared_ptr<arrow::Array> src, const int64_t offset,
         const int64_t len);
 
-    void copy_array(std::shared_ptr<t_column> dest,
-        std::shared_ptr<arrow::Array> src, const int64_t offset,
+    void copy_array(const std::shared_ptr<t_column>& dest,
+        const std::shared_ptr<arrow::Array>& src, const int64_t offset,
         const int64_t len);
 
 } // namespace apachearrow

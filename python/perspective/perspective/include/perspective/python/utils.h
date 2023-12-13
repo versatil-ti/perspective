@@ -65,8 +65,10 @@ namespace binding {
      * Date Parsing
      */
 
-    t_dtype type_string_to_t_dtype(std::string type, std::string name = "");
-    t_dtype type_string_to_t_dtype(py::str type, py::str name = "");
+    t_dtype type_string_to_t_dtype(
+        const std::string& value, const std::string& name = "");
+    t_dtype type_string_to_t_dtype(
+        const py::str& type, const py::str& name = "");
 
     t_val scalar_to_py(const t_tscalar& scalar, bool cast_double = false,
         bool cast_string = false);

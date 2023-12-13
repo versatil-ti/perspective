@@ -12,15 +12,14 @@
 
 #include <perspective/arrow_writer.h>
 
-namespace perspective {
-namespace apachearrow {
-    using namespace perspective;
+namespace perspective::apachearrow {
+using namespace perspective;
 
-    // TODO: unsure about efficacy of these functions when get<T> exists
-    template <>
-    double
-    get_scalar<double>(t_tscalar& t) {
-        return t.to_double();
+// TODO: unsure about efficacy of these functions when get<T> exists
+template <>
+double
+get_scalar<double>(t_tscalar& t) {
+    return t.to_double();
     }
     template <>
     float
@@ -79,5 +78,4 @@ namespace apachearrow {
     //     return (ridx - extents.m_srow) * stride + (cidx - extents.m_scol);
     // }
 
-} // namespace apachearrow
-} // namespace perspective
+    } // namespace perspective::apachearrow

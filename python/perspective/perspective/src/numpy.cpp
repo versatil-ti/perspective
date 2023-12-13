@@ -14,25 +14,28 @@
 #include <perspective/python/fill.h>
 #include <perspective/python/numpy.h>
 
+#include <utility>
+
+#include <utility>
+
 using namespace perspective;
 
-namespace perspective {
-namespace numpy {
+namespace perspective::numpy {
 
-    const std::vector<std::string> NumpyLoader::DATE_UNITS
-        = {"[D]", "[W]", "[M]", "[Y]"};
+const std::vector<std::string> NumpyLoader::DATE_UNITS
+    = {"[D]", "[W]", "[M]", "[Y]"};
 
-    NumpyLoader::NumpyLoader(t_val accessor)
-        : m_init(false)
-        , m_accessor(accessor) {}
+NumpyLoader::NumpyLoader(t_val accessor)
+    : m_init(false)
+    , m_accessor(std::move(std::move(accessor))) {}
 
-    NumpyLoader::~NumpyLoader() {}
+NumpyLoader::~NumpyLoader() = default;
 
-    void
-    NumpyLoader::init() {
-        m_names = make_names();
-        m_types = make_types();
-        m_init = true;
+void
+NumpyLoader::init() {
+    m_names = make_names();
+    m_types = make_types();
+    m_init = true;
     }
 
     std::vector<t_dtype>
@@ -44,7 +47,7 @@ namespace numpy {
 
         // Get numpy dtypes as string so we can tell the difference between
         // dates and datetimes
-        std::vector<std::string> str_dtypes
+        auto str_dtypes
             = m_accessor.attr("types")().cast<std::vector<std::string>>();
 
         for (auto i = 0; i < num_columns; ++i) {
@@ -120,11 +123,11 @@ namespace numpy {
 
         // Fill index column - recreated every time a `t_data_table` is created.
         if (!implicit_index) {
-            if (index == "") {
+            if (index.empty()) {
                 // Use row number as index if not explicitly provided or
                 // provided with `__INDEX__`
-                auto key_col = tbl.add_column("psp_pkey", DTYPE_INT32, true);
-                auto okey_col = tbl.add_column("psp_okey", DTYPE_INT32, true);
+                auto* key_col = tbl.add_column("psp_pkey", DTYPE_INT32, true);
+                auto* okey_col = tbl.add_column("psp_okey", DTYPE_INT32, true);
 
                 for (std::uint32_t ridx = 0; ridx < tbl.size(); ++ridx) {
                     key_col->set_nth<std::int32_t>(
@@ -140,9 +143,9 @@ namespace numpy {
     }
 
     void
-    NumpyLoader::fill_column(t_data_table& tbl, std::shared_ptr<t_column> col,
-        const std::string& name, t_dtype type, std::uint32_t cidx,
-        bool is_update) {
+    NumpyLoader::fill_column(t_data_table& tbl,
+        const std::shared_ptr<t_column>& col, const std::string& name,
+        t_dtype type, std::uint32_t cidx, bool is_update) {
         PSP_VERBOSE_ASSERT(m_init, "touching uninited object");
 
         // Use name index instead of column index - prevents off-by-one errors
@@ -160,10 +163,9 @@ namespace numpy {
         t_dtype np_dtype = m_types[nidx];
 
         py::dict source = m_accessor.attr("_get_numpy_column")(name);
-        py::array array = source["array"].cast<py::array>();
-        py::array_t<std::uint64_t> mask
-            = source["mask"].cast<py::array_t<std::uint64_t>>();
-        std::uint64_t* mask_ptr = (std::uint64_t*)mask.data();
+        auto array = source["array"].cast<py::array>();
+        auto mask = source["mask"].cast<py::array_t<std::uint64_t>>();
+        auto* mask_ptr = (std::uint64_t*)mask.data();
         std::size_t mask_size = mask.size();
 
         // Check array dtype to make sure that `deconstruct_numpy` didn't cast
@@ -216,10 +218,10 @@ namespace numpy {
             return;
         }
 
-        bool copy_status = try_copy_array(array, col, np_dtype, type, 0);
+        bool copy_status = try_copy_array(array, col, np_dtype, type, 0) != 0u;
 
         // Iterate if copy is not supported for the numpy array
-        if (copy_status == t_fill_status::FILL_FAIL) {
+        if (static_cast<int>(copy_status) == t_fill_status::FILL_FAIL) {
             fill_column_iter(
                 array, tbl, col, name, np_dtype, type, cidx, is_update);
         }
@@ -272,7 +274,7 @@ namespace numpy {
                 continue;
             }
 
-            double fval = item.cast<double>();
+            auto fval = item.cast<double>();
             if (!is_update && (fval > 2147483647 || fval < -2147483648)) {
                 binding::WARN(
                     "Promoting column `%s` to float from int32", name);
@@ -313,7 +315,7 @@ namespace numpy {
                 continue;
             }
 
-            double fval = item.cast<double>();
+            auto fval = item.cast<double>();
             if (isnan(fval)) {
                 binding::WARN(
                     "Promoting column `%s` to string from int64", name);
@@ -322,9 +324,8 @@ namespace numpy {
                 fill_object_iter<std::string>(
                     tbl, col, name, np_dtype, DTYPE_STR, cidx, is_update);
                 return;
-            } else {
-                col->set_nth(i, static_cast<std::int64_t>(fval));
             }
+            col->set_nth(i, static_cast<std::int64_t>(fval));
         }
     }
 
@@ -365,7 +366,7 @@ namespace numpy {
     // Must be below `fill_object_iter` explicit instantiations.
     void
     NumpyLoader::fill_column_iter(const py::array& array, t_data_table& tbl,
-        std::shared_ptr<t_column> col, const std::string& name,
+        const std::shared_ptr<t_column>& col, const std::string& name,
         t_dtype np_dtype, t_dtype type, std::uint32_t cidx, bool is_update) {
         PSP_VERBOSE_ASSERT(m_init, "touching uninited object");
         // Numpy arrays are guaranteed to be continous and valid by the time
@@ -415,13 +416,14 @@ namespace numpy {
     // `array.dtype=datetime64[ns/us/ms/s]`
     void
     NumpyLoader::fill_datetime_iter(const py::array& array, t_data_table& tbl,
-        std::shared_ptr<t_column> col, const std::string& name,
-        t_dtype np_dtype, t_dtype type, std::uint32_t cidx, bool is_update) {
+        const std::shared_ptr<t_column>& col, const std::string& name,
+        t_dtype np_dtype, t_dtype type, std::uint32_t cidx,
+        bool is_update) const {
         PSP_VERBOSE_ASSERT(m_init, "touching uninited object");
         t_uindex nrows = col->size();
 
         // read the array as a double array because of `numpy.nat`
-        double* ptr = (double*)array.data();
+        auto* ptr = (double*)array.data();
 
         for (auto i = 0; i < nrows; ++i) {
             std::int64_t item
@@ -431,7 +433,7 @@ namespace numpy {
     }
 
     void
-    NumpyLoader::fill_date_iter(std::shared_ptr<t_column> col,
+    NumpyLoader::fill_date_iter(const std::shared_ptr<t_column>& col,
         const std::string& name, t_dtype np_dtype, t_dtype type,
         std::uint32_t cidx, bool is_update) {
         PSP_VERBOSE_ASSERT(m_init, "touching uninited object");
@@ -460,7 +462,7 @@ namespace numpy {
 
     void
     NumpyLoader::fill_bool_iter(const py::array& array, t_data_table& tbl,
-        std::shared_ptr<t_column> col, const std::string& name,
+        const std::shared_ptr<t_column>& col, const std::string& name,
         t_dtype np_dtype, t_dtype type, std::uint32_t cidx, bool is_update) {
         PSP_VERBOSE_ASSERT(m_init, "touching uninited object");
         t_uindex nrows = col->size();
@@ -482,7 +484,7 @@ namespace numpy {
 
     void
     NumpyLoader::fill_numeric_iter(const py::array& array, t_data_table& tbl,
-        std::shared_ptr<t_column> col, const std::string& name,
+        const std::shared_ptr<t_column>& col, const std::string& name,
         t_dtype np_dtype, t_dtype type, std::uint32_t cidx, bool is_update) {
         PSP_VERBOSE_ASSERT(m_init, "touching uninited object");
         t_uindex nrows = col->size();
@@ -614,8 +616,8 @@ namespace numpy {
      */
     t_fill_status
     NumpyLoader::try_copy_array(const py::array& src,
-        std::shared_ptr<t_column> dest, t_dtype np_dtype, t_dtype type,
-        const std::uint64_t offset) {
+        const std::shared_ptr<t_column>& dest, t_dtype np_dtype, t_dtype type,
+        const std::uint64_t offset) const {
         PSP_VERBOSE_ASSERT(m_init, "touching uninited object");
         std::int64_t length = src.size();
 
@@ -660,8 +662,8 @@ namespace numpy {
     }
 
     void
-    NumpyLoader::fill_validity_map(std::shared_ptr<t_column> col,
-        std::uint64_t* mask_ptr, std::size_t mask_size, bool is_update) {
+    NumpyLoader::fill_validity_map(const std::shared_ptr<t_column>& col,
+        const std::uint64_t* mask_ptr, std::size_t mask_size, bool is_update) {
         // Validity map needs to be filled each time - None/np.nan/float('nan')
         // might not have been parsed correctly
         col->valid_raw_fill();
@@ -735,7 +737,8 @@ namespace numpy {
                 // datetime64
                 rval[i] = DTYPE_TIME;
                 continue;
-            } else if (dtype_code == 'm') {
+            }
+            if (dtype_code == 'm') {
                 // coerce timedelta to string
                 rval[i] = DTYPE_STR;
                 continue;
@@ -775,6 +778,5 @@ namespace numpy {
         return rval;
     }
 
-} // namespace numpy
-} // namespace perspective
+    } // namespace perspective::numpy
 #endif

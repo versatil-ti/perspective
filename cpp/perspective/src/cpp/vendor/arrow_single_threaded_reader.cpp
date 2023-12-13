@@ -152,9 +152,8 @@ class CSVBufferIterator {
     if (buf->size() == 0) {
       // EOF
       return TransformFinish();
-    } else {
-      return TransformYield(buf);
     }
+    return TransformYield(buf);
   }
 
  protected:
@@ -215,9 +214,10 @@ class SerialBlockReader : public BlockReader {
  public:
   using BlockReader::BlockReader;
 
-  static Iterator<CSVBlock> MakeIterator(
-      Iterator<std::shared_ptr<Buffer>> buffer_iterator, std::unique_ptr<Chunker> chunker,
-      std::shared_ptr<Buffer> first_buffer, int64_t skip_rows) {
+  static Iterator<CSVBlock>
+  MakeIterator(Iterator<std::shared_ptr<Buffer>> buffer_iterator,
+      std::unique_ptr<Chunker> chunker,
+      const std::shared_ptr<Buffer>& first_buffer, int64_t skip_rows) {
     auto block_reader =
         std::make_shared<SerialBlockReader>(std::move(chunker), first_buffer, skip_rows);
     // Wrap shared pointer in callable
@@ -242,7 +242,8 @@ class SerialBlockReader : public BlockReader {
 //     return MakeTransformedGenerator(std::move(buffer_generator), block_reader_fn);
 //   }
 
-  Result<TransformFlow<CSVBlock>> operator()(std::shared_ptr<Buffer> next_buffer) {
+  Result<TransformFlow<CSVBlock>>
+  operator()(const std::shared_ptr<Buffer>& next_buffer) {
     if (buffer_ == nullptr) {
       return TransformFinish();
     }
@@ -250,20 +251,20 @@ class SerialBlockReader : public BlockReader {
     bool is_final = (next_buffer == nullptr);
     int64_t bytes_skipped = 0;
 
-    if (skip_rows_) {
+    if (skip_rows_ != 0) {
       bytes_skipped += partial_->size();
       auto orig_size = buffer_->size();
       RETURN_NOT_OK(
           chunker_->ProcessSkip(partial_, buffer_, is_final, &skip_rows_, &buffer_));
       bytes_skipped += orig_size - buffer_->size();
       auto empty = std::make_shared<Buffer>(nullptr, 0);
-      if (skip_rows_) {
-        // Still have rows beyond this buffer to skip return empty block
-        partial_ = std::move(buffer_);
-        buffer_ = next_buffer;
-        return TransformYield<CSVBlock>(CSVBlock{empty, empty, empty, block_index_++,
-                                                 is_final, bytes_skipped,
-                                                 [](int64_t) { return Status::OK(); }});
+      if (skip_rows_ != 0) {
+          // Still have rows beyond this buffer to skip return empty block
+          partial_ = std::move(buffer_);
+          buffer_ = next_buffer;
+          return TransformYield<CSVBlock>(
+              CSVBlock{empty, empty, empty, block_index_++, is_final,
+                  bytes_skipped, [](int64_t) { return Status::OK(); }});
       }
       partial_ = std::move(empty);
     }
@@ -339,15 +340,16 @@ namespace {
 // This operator is not re-entrant
 class BlockParsingOperator {
  public:
-  BlockParsingOperator(io::IOContext io_context, ParseOptions parse_options,
-                       int num_csv_cols, int64_t first_row)
-      : io_context_(io_context),
-        parse_options_(parse_options),
-        num_csv_cols_(num_csv_cols),
-        count_rows_(first_row >= 0),
-        num_rows_seen_(first_row) {}
+     BlockParsingOperator(io::IOContext io_context, ParseOptions parse_options,
+         int num_csv_cols, int64_t first_row)
+         : io_context_(std::move(std::move(io_context)))
+         , parse_options_(std::move(std::move(parse_options)))
+         , num_csv_cols_(num_csv_cols)
+         , count_rows_(first_row >= 0)
+         , num_rows_seen_(first_row) {}
 
-  Result<ParsedBlock> operator()(const CSVBlock& block) {
+     Result<ParsedBlock>
+     operator()(const CSVBlock& block) {
     constexpr int32_t max_num_rows = std::numeric_limits<int32_t>::max();
     auto parser = std::make_shared<BlockParser>(
         io_context_.pool(), parse_options_, num_csv_cols_, num_rows_seen_, max_num_rows);
@@ -395,16 +397,17 @@ class BlockParsingOperator {
 
 class ReaderMixin {
  public:
-  ReaderMixin(io::IOContext io_context, std::shared_ptr<io::InputStream> input,
-              const ReadOptions& read_options, const ParseOptions& parse_options,
-              const ConvertOptions& convert_options, bool count_rows)
-      : io_context_(std::move(io_context)),
-        read_options_(read_options),
-        parse_options_(parse_options),
-        convert_options_(convert_options),
-        count_rows_(count_rows),
-        num_rows_seen_(count_rows_ ? 1 : -1),
-        input_(std::move(input)) {}
+     ReaderMixin(io::IOContext io_context,
+         std::shared_ptr<io::InputStream> input, ReadOptions read_options,
+         ParseOptions parse_options, ConvertOptions convert_options,
+         bool count_rows)
+         : io_context_(std::move(io_context))
+         , read_options_(std::move(read_options))
+         , parse_options_(std::move(parse_options))
+         , convert_options_(std::move(convert_options))
+         , count_rows_(count_rows)
+         , num_rows_seen_(count_rows_ ? 1 : -1)
+         , input_(std::move(input)) {}
 
  protected:
   // Read header and column names from buffer, create column builders
@@ -412,10 +415,10 @@ class ReaderMixin {
   Result<int64_t> ProcessHeader(const std::shared_ptr<Buffer>& buf,
                                 std::shared_ptr<Buffer>* rest) {
     const uint8_t* data = buf->data();
-    const auto data_end = data + buf->size();
+    const auto* const data_end = data + buf->size();
     DCHECK_GT(data_end - data, 0);
 
-    if (read_options_.skip_rows) {
+    if (read_options_.skip_rows != 0) {
       // Skip initial rows (potentially invalid CSV data)
       auto num_skipped_rows = SkipRows(data, static_cast<uint32_t>(data_end - data),
                                        read_options_.skip_rows, &data);
@@ -482,7 +485,8 @@ class ReaderMixin {
     return bytes_consumed;
   }
 
-  std::vector<std::string> GenerateColumnNames(int32_t num_cols) {
+  static std::vector<std::string>
+  GenerateColumnNames(int32_t num_cols) {
     std::vector<std::string> res;
     res.reserve(num_cols);
     for (int32_t i = 0; i < num_cols; ++i) {
@@ -743,9 +747,9 @@ class SerialTableReader : public BaseTableReader {
   Iterator<std::shared_ptr<Buffer>> buffer_iterator_;
 };
 
-
-Result<std::shared_ptr<TableReader>> MakeTableReader(
-    MemoryPool* pool, io::IOContext io_context, std::shared_ptr<io::InputStream> input,
+Result<std::shared_ptr<TableReader>>
+MakeTableReader(MemoryPool* pool, const io::IOContext& io_context,
+    const std::shared_ptr<io::InputStream>& input,
     const ReadOptions& read_options, const ParseOptions& parse_options,
     const ConvertOptions& convert_options) {
   RETURN_NOT_OK(parse_options.Validate());
@@ -765,16 +769,13 @@ Result<std::shared_ptr<TableReader>> MakeTableReader(
   return reader;
 }
 
-
-
-
 /////////////////////////////////////////////////////////////////////////
 // Factory functions
 
-Result<std::shared_ptr<TableReader>> TableReader::Make(
-    io::IOContext io_context, std::shared_ptr<io::InputStream> input,
-    const ReadOptions& read_options, const ParseOptions& parse_options,
-    const ConvertOptions& convert_options) {
+Result<std::shared_ptr<TableReader>>
+TableReader::Make(const io::IOContext& io_context,
+    std::shared_ptr<io::InputStream> input, const ReadOptions& read_options,
+    const ParseOptions& parse_options, const ConvertOptions& convert_options) {
   return MakeTableReader(io_context.pool(), io_context, std::move(input), read_options,
                          parse_options, convert_options);
 }
@@ -783,8 +784,8 @@ Result<std::shared_ptr<TableReader>> TableReader::Make(
     MemoryPool* pool, io::IOContext io_context, std::shared_ptr<io::InputStream> input,
     const ReadOptions& read_options, const ParseOptions& parse_options,
     const ConvertOptions& convert_options) {
-  return MakeTableReader(pool, io_context, std::move(input), read_options, parse_options,
-                         convert_options);
+  return MakeTableReader(pool, std::move(io_context), std::move(input),
+      read_options, parse_options, convert_options);
 }
 
 }  // namespace csv
