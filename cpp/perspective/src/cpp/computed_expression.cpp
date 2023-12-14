@@ -481,11 +481,10 @@ t_computed_function_store::t_computed_function_store(t_expression_vocab& vocab,
           computed_function::replace(vocab, regex_mapping, is_type_validator))
     , m_replace_all_fn(computed_function::replace_all(
           vocab, regex_mapping, is_type_validator))
-    , m_index_fn(computed_function::index(pkey_map, source_table, row_idx))
-    , m_col_fn(computed_function::col(
-          vocab, is_type_validator, source_table, row_idx))
-    , m_vlookup_fn(computed_function::vlookup(
-          vocab, is_type_validator, source_table, row_idx)) {}
+    , m_index_fn(computed_function::index(source_table, row_idx))
+    , m_col_fn(computed_function::col(source_table, row_idx))
+    , m_vlookup_fn(
+          computed_function::vlookup(is_type_validator, source_table)) {}
 
 void
 t_computed_function_store::register_computed_functions(

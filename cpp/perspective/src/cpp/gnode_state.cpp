@@ -225,7 +225,7 @@ t_gstate::update_master_table(const t_data_table* flattened) {
 
     parallel_for(int(ncols),
         [flattened, flattened_op_col, &master_schema, &master_table,
-            &master_table_indexes, this](int idx) {
+            &master_table_indexes](int idx) {
             const std::string& column_name = master_schema.m_columns[idx];
             t_column* master_column
                 = master_table->get_column(column_name).get();

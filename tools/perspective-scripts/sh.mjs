@@ -22,7 +22,7 @@ const DEFAULT_OPTIONS = {
     maxBuffer: 1024 * 1024 * 100,
 };
 
-class Command extends Function {
+export class Command extends Function {
     #command;
     #options;
     #modified_env;

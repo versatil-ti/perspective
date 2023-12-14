@@ -11,36 +11,57 @@
 // ┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
 
 import sh from "./sh.mjs";
+import * as fs from "fs";
 import * as url from "url";
-import dotenv from "dotenv";
+import * as os from "os";
+import glob from "glob";
 
-dotenv.config({ path: "./.perspectiverc" });
+const __dirname = url.fileURLToPath(new URL(".", import.meta.url)).slice(0, -1);
 
-export function lint(task = sh`--check`) {
-    const cmd = sh`prettier ${task} "examples/**/*.js" "examples/**/*.tsx" "tools/perspective-scripts/*.mjs" "rust/**/*.ts" "rust/**/*.js" "packages/**/*.js" "packages/**/*.ts" "cpp/**/*.js"`;
-    cmd.sh`prettier --prose-wrap=always ${task} "docs/docs/*.md"`;
-    cmd.sh`prettier ${task} "**/*.yml"`;
-    cmd.sh`prettier ${task} "**/less/*.less"`;
-    cmd.sh`prettier ${task} "**/html/*.html"`;
-    cmd.sh`prettier ${task} "packages/**/package.json" "rust/**/package.json" "examples/**/package.json" "docs/package.json"`;
-
-    // cmd.sh`node tools/perspective-scripts/fix_cpp.mjs`;
-
-    cmd.runSync();
+export function lint() {
+    if (process.env.PSP_PROJECT === "js") {
+        const cppPath = sh.path`${__dirname}/../../cpp/perspective`;
+        const cppDistPath = sh.path`${cppPath}/dist/release`;
+        tidy(cppDistPath, sh.path`${cppPath}/src`);
+    } else if (process.env.PSP_PROJECT === "python") {
+        const cppPath = sh.path`${__dirname}/../../python/perspective`;
+        const cppDistPath = sh.path`${cppPath}/build/last_build`;
+        tidy(cppDistPath, cppPath);
+    } else {
+        console.error("Unknown project type, skipping lint");
+    }
 }
 
-if (import.meta.url.startsWith("file:")) {
-    if (process.argv[1] === url.fileURLToPath(import.meta.url)) {
-        await import("./lint_python.mjs");
-        try {
-            const module = await import("./lint_cpp.mjs");
-            module.lint();
-        } catch (e) {
-            console.warn("C++ linting failed, skipping");
-        }
-        const { default: run } = await import("./lint_headers.mjs");
-        const exit_code = await run(false);
-        lint(sh`--check`);
-        process.exit(exit_code);
+/** @typedef {import('./sh.mjs').Command} Command */
+
+/**
+ * Runs clang tidy on the source directory using the compile_commands.json
+ * from the build directory.
+ *
+ * @param {string} buildDir
+ * @param {string} sourceDir
+ */
+function tidy(buildDir, sourceDir) {
+    if (!checkClangTidy()) {
+        console.warn("run-clang-tidy not found, skipping lint");
+        return;
+    }
+    if (fs.existsSync(buildDir)) {
+        const jobs = os.cpus().length;
+        const sources = glob.sync(`${sourceDir}/**/*.{cpp,h}`);
+        const cmd = sh`run-clang-tidy -use-color -p${buildDir} -j${jobs} ${sources}`;
+        // const cmd = sh`run-clang-tidy -p${buildDir} -j${jobs} ${sourceDir}/**/*.{cpp,h}`;
+        cmd.runSync();
+    } else {
+        console.warn("No C++ build directory found, skipping lint");
+    }
+}
+
+function checkClangTidy() {
+    try {
+        sh`which -s run-clang-tidy`.runSync();
+        return true;
+    } catch (e) {
+        return false;
     }
 }

@@ -186,41 +186,34 @@ namespace computed_function {
     FUNCTION_HEADER(length)
 
     struct index : public exprtk::igeneric_function<t_tscalar> {
-        index(const t_pkey_mapping& pkey_map,
-            std::shared_ptr<t_data_table> source_table, t_uindex& row_idx);
-        ~index();
-        t_tscalar operator()(t_parameter_list parameters);
+        index(std::shared_ptr<t_data_table> source_table, t_uindex& row_idx);
+        ~index() override = default;
+        t_tscalar operator()(t_parameter_list parameters) override;
 
     private:
-        const t_pkey_mapping& m_pkey_map;
         std::shared_ptr<t_data_table> m_source_table;
         t_uindex& m_row_idx;
     };
 
     struct col : public exprtk::igeneric_function<t_tscalar> {
-        col(t_expression_vocab& expression_vocab, bool is_type_validator,
-            std::shared_ptr<t_data_table> source_table, t_uindex& row_idx);
-        ~col();
-        t_tscalar operator()(t_parameter_list parameters);
+        col(std::shared_ptr<t_data_table> source_table, t_uindex& row_idx);
+        ~col() override = default;
+        t_tscalar operator()(t_parameter_list parameters) override;
 
     private:
-        t_expression_vocab& m_expression_vocab;
-        bool m_is_type_validator;
         std::shared_ptr<t_data_table> m_source_table;
         t_uindex& m_row_idx;
     };
 
     struct vlookup : public exprtk::igeneric_function<t_tscalar> {
-        vlookup(t_expression_vocab& expression_vocab, bool is_type_validator,
-            std::shared_ptr<t_data_table> source_table, t_uindex& row_idx);
-        ~vlookup();
-        t_tscalar operator()(t_parameter_list parameters);
+        vlookup(
+            bool is_type_validator, std::shared_ptr<t_data_table> source_table);
+        ~vlookup() override = default;
+        t_tscalar operator()(t_parameter_list parameters) override;
 
     private:
-        t_expression_vocab& m_expression_vocab;
         bool m_is_type_validator;
         std::shared_ptr<t_data_table> m_source_table;
-        t_uindex& m_row_idx;
     };
 
     /**
