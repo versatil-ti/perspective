@@ -319,6 +319,18 @@ jobs:
             - name: Install CCache
               run: sudo apt install -y ccache
 
+            - name: Install newer version of clang-tidy
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y software-properties-common
+                  wget https://apt.llvm.org/llvm.sh
+                  chmod +x llvm.sh
+                  sudo ./llvm.sh 16
+                  sudo apt-get install -y clang-tidy-16
+                  echo "$(dirname $(realpath $(which run-clang-tidy-16)))" >> $GITHUB_PATH
+              # sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-16 100
+              # sudo update-alternatives --install /usr/bin/run-clang-tidy run-clang-tidy /usr/bin/run-clang-tidy-16 100
+
             #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
             #~~~~~~~~~ Build Pipelines ~~~~~~~~~#
             #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
@@ -332,6 +344,12 @@ jobs:
               run: yarn build_js --ci
               env:
                   PSP_USE_CCACHE: 1
+
+            - name: C++ Lint
+              run: yarn lint
+              env:
+                  PSP_LINT_ONLY: "cpp"
+                  PSP_PROJECT: "js"
 
             # - name: Docs Build
             #   run: yarn docs
@@ -494,6 +512,16 @@ jobs:
                   cache: "yarn"
                   cache-dependency-path: yarn.lock
 
+            - name: Install newer version of clang-tidy
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y software-properties-common
+                  wget https://apt.llvm.org/llvm.sh
+                  chmod +x llvm.sh
+                  sudo ./llvm.sh 16
+                  sudo apt-get install -y clang-tidy-16
+                  sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-16 100
+
             ################
             # Dependencies #
             ################
@@ -524,6 +552,8 @@ jobs:
               run: yarn lint
               env:
                   PYTHON_VERSION: ${{ matrix.python-version }}
+                  PSP_PROJECT: python
+                  PSP_CLANG_TIDY_PATH: ${{ github.workspace }}/llvm/bin/run-clang-tidy
 
     ##########################################################################################################################
     ##########################################################################################################################

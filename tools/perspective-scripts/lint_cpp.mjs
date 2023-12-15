@@ -46,10 +46,11 @@ function tidy(buildDir, sourceDir) {
         console.warn("run-clang-tidy not found, skipping lint");
         return;
     }
+    const ctpath = clangTidyPath();
     if (fs.existsSync(buildDir)) {
         const jobs = os.cpus().length;
         const sources = glob.sync(`${sourceDir}/**/*.{cpp,h}`);
-        const cmd = sh`run-clang-tidy -use-color -p${buildDir} -j${jobs} ${sources}`;
+        const cmd = sh`${ctpath} -use-color -p${buildDir} -j${jobs} ${sources}`;
         // const cmd = sh`run-clang-tidy -p${buildDir} -j${jobs} ${sourceDir}/**/*.{cpp,h}`;
         cmd.runSync();
     } else {
@@ -59,9 +60,17 @@ function tidy(buildDir, sourceDir) {
 
 function checkClangTidy() {
     try {
-        sh`which -s run-clang-tidy`.runSync();
+        sh`which run-clang-tidy`.runSync();
         return true;
     } catch (e) {
         return false;
+    }
+}
+
+function clangTidyPath() {
+    if (process.env.PSP_CLANG_TIDY_PATH !== undefined) {
+        return process.env.PSP_CLANG_TIDY_PATH;
+    } else {
+        return "run-clang-tidy";
     }
 }

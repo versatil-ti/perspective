@@ -31,16 +31,25 @@ export function lint(task = sh`--check`) {
 
 if (import.meta.url.startsWith("file:")) {
     if (process.argv[1] === url.fileURLToPath(import.meta.url)) {
-        await import("./lint_python.mjs");
-        try {
-            const module = await import("./lint_cpp.mjs");
-            module.lint();
-        } catch (e) {
-            console.warn("C++ linting failed, skipping");
+        if (
+            !process.env.PSP_LINT_ONLY ||
+            process.env.PSP_LINT_ONLY === "python"
+        ) {
+            await import("./lint_python.mjs");
+        }
+        if (!process.env.PSP_LINT_ONLY || process.env.PSP_LINT_ONLY === "cpp") {
+            try {
+                const module = await import("./lint_cpp.mjs");
+                module.lint();
+            } catch (e) {
+                console.warn("C++ linting failed, skipping");
+            }
         }
         const { default: run } = await import("./lint_headers.mjs");
         const exit_code = await run(false);
-        lint(sh`--check`);
+        if (!process.env.PSP_LINT_ONLY || process.env.PSP_LINT_ONLY === "js") {
+            lint(sh`--check`);
+        }
         process.exit(exit_code);
     }
 }
