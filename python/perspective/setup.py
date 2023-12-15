@@ -219,12 +219,6 @@ class PSPBuild(build_ext):
             env=env,
             stderr=subprocess.STDOUT,
         )
-        subprocess.check_call(
-            [self.cmake_cmd, "--build", "."] + build_args,
-            cwd=self.build_temp,
-            env=env,
-            stderr=subprocess.STDOUT,
-        )
 
         # Symlink build_temp to a sibling directory called `last_build` so that we can
         # use it for C++/Python IntelliSense in VSCode.
@@ -233,6 +227,21 @@ class PSPBuild(build_ext):
             if os.path.exists(last_build):
                 os.unlink(last_build)
             os.symlink(os.path.join("..", self.build_temp), last_build)
+
+            # Sadness https://discourse.llvm.org/t/clang-tidy-problem-encountered-with-multiple-architectures/68314
+            compile_commands_path = os.path.join(self.build_temp, "compile_commands.json")
+            if os.path.exists(compile_commands_path):
+                with open(compile_commands_path, "r") as f:
+                    compile_commands = f.read()
+                with open(compile_commands_path, "w") as f:
+                    f.write(compile_commands.replace("-arch x86_64", ""))
+
+        subprocess.check_call(
+            [self.cmake_cmd, "--build", "."] + build_args,
+            cwd=self.build_temp,
+            env=env,
+            stderr=subprocess.STDOUT,
+        )
 
         print()  # Add an empty line for cleaner output
 

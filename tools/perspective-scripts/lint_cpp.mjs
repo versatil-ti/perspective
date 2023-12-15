@@ -26,7 +26,7 @@ export function lint() {
     } else if (process.env.PSP_PROJECT === "python") {
         const cppPath = sh.path`${__dirname}/../../python/perspective`;
         const cppDistPath = sh.path`${cppPath}/build/last_build`;
-        tidy(cppDistPath, cppPath);
+        tidy(cppDistPath, sh.path`${cppPath}/perspective`);
     } else {
         console.error("Unknown project type, skipping lint");
     }
