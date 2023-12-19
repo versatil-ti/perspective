@@ -328,8 +328,6 @@ jobs:
                   sudo ./llvm.sh 16
                   sudo apt-get install -y clang-tidy-16
                   echo "$(dirname $(realpath $(which run-clang-tidy-16)))" >> $GITHUB_PATH
-              # sudo update-alternatives --install /usr/bin/clang-tidy clang-tidy /usr/bin/clang-tidy-16 100
-              # sudo update-alternatives --install /usr/bin/run-clang-tidy run-clang-tidy /usr/bin/run-clang-tidy-16 100
 
             #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
             #~~~~~~~~~ Build Pipelines ~~~~~~~~~#
@@ -1072,6 +1070,17 @@ jobs:
             #   run: sudo node tools/perspective-scripts/install_tools.mjs
             #   if: ${{ runner.os == 'Linux' }}
 
+            - name: Install newer version of clang-tidy
+              if: ${{ matrix.os == 'ubuntu-20.04' }}
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y software-properties-common
+                  wget https://apt.llvm.org/llvm.sh
+                  chmod +x llvm.sh
+                  sudo ./llvm.sh 16
+                  sudo apt-get install -y clang-tidy-16
+                  echo "$(dirname $(realpath $(which run-clang-tidy-16)))" >> $GITHUB_PATH
+
             ################
             # Mac
             - name: Install Boost (MacOS)
@@ -1102,6 +1111,13 @@ jobs:
                   MANYLINUX: ${{ matrix.container }}
                   PSP_DOCKER: 1
               if: ${{ matrix.os == 'ubuntu-20.04' }}
+
+            - name: C++ Lint
+              run: yarn lint # C++ lints only works if we configure cmake first
+              if: ${{ matrix.os == 'ubuntu-20.04' }}
+              env:
+                  PSP_LINT_ONLY: "cpp"
+                  PSP_PROJECT: "python"
 
             ########
             # Macos
