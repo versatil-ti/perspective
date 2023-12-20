@@ -303,6 +303,7 @@ elseif(PSP_CPP_BUILD OR PSP_PYTHON_BUILD)
         psp_build_message("${Cyan}Found Boost: `Boost_INCLUDE_DIRS`: ${Boost_INCLUDE_DIRS}, `Boost_LIBRARY_DIRS` - ${Boost_LIBRARY_DIRS} ${ColorReset}")
 
         if(WIN32)
+            include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
             add_definitions(-DBOOST_UUID_FORCE_AUTO_LINK)
         endif()
     endif()
@@ -686,6 +687,8 @@ configure_file(
 # others which will occasionally resolve includes to homebrew and local headers
 # in the same file. Keeping this at the end of the file helps mitigate that issue.
 if((PSP_CPP_BUILD OR PSP_PYTHON_BUILD) AND Boost_FOUND)
-    include_directories(AFTER SYSTEM ${Boost_INCLUDE_DIRS})
+    if(NOT WIN32)
+        include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
+    endif()
 endif()
 # DO NOT WRITE BELOW THIS LINE, ADD NEW INCLUDES ABOVE

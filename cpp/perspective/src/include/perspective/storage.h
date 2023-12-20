@@ -214,13 +214,13 @@ public:
 
 protected:
     void copy_helper_(const t_lstore& other);
-    static void freeze_impl();
-    static void unfreeze_impl();
+    void freeze_impl();
+    void unfreeze_impl();
 
 private:
     void reserve_impl(t_uindex capacity, bool allow_shrink);
     t_handle create_file();
-    void* create_mapping() const;
+    void* create_mapping();
     void resize_mapping(t_uindex cap_new);
     void destroy_mapping();
 
