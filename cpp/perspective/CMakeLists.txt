@@ -675,12 +675,20 @@ else()
     set(CLANGD_ADD_FLAGS "")
 endif()
 
-# Configure the .clangd file from the template
-configure_file(
-    ${CMAKE_SOURCE_DIR}/.clangd.in
-    ${CMAKE_BINARY_DIR}/.clangd
-    @ONLY
-)
+
+# Check for existence of .clangd file
+if(EXISTS ${CMAKE_SOURCE_DIR}/.clangd.in)
+    message(STATUS "${Cyan}Found ${CMAKE_SOURCE_DIR}/.clangd.in${ColorReset}")
+    # Configure the .clangd file from the template
+    configure_file(
+        ${CMAKE_SOURCE_DIR}/.clangd.in
+        ${CMAKE_BINARY_DIR}/.clangd
+        @ONLY
+    )
+    message(STATUS "${Cyan}Created ${CMAKE_BINARY_DIR}/.clangd${ColorReset}")
+else()
+    message("${Yellow}No .clangd.in found, skipping IDE setup${ColorReset}")
+endif()
 
 # On MacOS this includes the entire /opt/homebrew/include directory which
 # will mask local includes and cause mysterious compile errors in libre2 and
