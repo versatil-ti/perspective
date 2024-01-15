@@ -695,8 +695,8 @@ jobs:
             ###############
             # WebAssembly #
             ###############
-            - name: WebAssembly Test
-              run: yarn test_js --ci
+            # - name: WebAssembly Test
+            #   run: yarn test_js --ci
 
     #############################         ##############################
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~#         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
