@@ -47,7 +47,7 @@ pub fn get_new_column_name(session: &Session) -> String {
     let mut i = 0;
     loop {
         i += 1;
-        let name = format!("New Column {i}");
+        let name = format!("Nova Coluna {i}");
         if session.metadata().get_column_table_type(&name).is_none() {
             return name;
         }
