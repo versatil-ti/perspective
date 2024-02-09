@@ -76,7 +76,7 @@ export class HTMLPerspectiveViewerDatagridPluginElement extends HTMLElement {
     }
 
     get config_column_names() {
-        return ["Colunas"];
+        return ["Columns"];
     }
 
     /**
