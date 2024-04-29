@@ -182,248 +182,248 @@ jobs:
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
     # Stage One - Build the JS Assets #
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-    build_js:
-        needs: [initialize]
+    # build_js:
+    #     needs: [initialize]
 
-        strategy:
-            matrix:
-                os:
-                    - ubuntu-22.04 # https://github.com/actions/virtual-environments/blob/main/images/linux/Ubuntu2004-Readme.md
-                python-version:
-                    - 3.9
-                node-version: [18.x]
+    #     strategy:
+    #         matrix:
+    #             os:
+    #                 - ubuntu-22.04 # https://github.com/actions/virtual-environments/blob/main/images/linux/Ubuntu2004-Readme.md
+    #             python-version:
+    #                 - 3.9
+    #             node-version: [18.x]
 
-            # NOTE: don't fail fast as sometimes npm blocks the burst of fetches from GHA
-            fail-fast: false
-        ##################################
-        # Setup matrix job configuration #
-        ##################################
-        runs-on: ${{ matrix.os }}
-        if: ${{ needs.initialize.outputs.SKIP_CI == 'false' }}
+    #         # NOTE: don't fail fast as sometimes npm blocks the burst of fetches from GHA
+    #         fail-fast: false
+    #     ##################################
+    #     # Setup matrix job configuration #
+    #     ##################################
+    #     runs-on: ${{ matrix.os }}
+    #     if: ${{ needs.initialize.outputs.SKIP_CI == 'false' }}
 
-        steps:
-            - name: Clean System
-              uses: AdityaGarg8/remove-unwanted-software@v2
-              if: ${{ runner.os == 'Linux' }}
-              with:
-                  remove-android: "true"
-                  remove-dotnet: "true"
-                  remove-haskell: "true"
-                  remove-codeql: "true"
+    #     steps:
+    #         - name: Clean System
+    #           uses: AdityaGarg8/remove-unwanted-software@v2
+    #           if: ${{ runner.os == 'Linux' }}
+    #           with:
+    #               remove-android: "true"
+    #               remove-dotnet: "true"
+    #               remove-haskell: "true"
+    #               remove-codeql: "true"
 
-            - name: Checkout
-              uses: actions/checkout@v3
+    #         - name: Checkout
+    #           uses: actions/checkout@v3
 
-            ##########
-            # Caches #
-            ##########
-            ################
-            # Yarn Cache
-            - name: Get yarn cache directory path
-              id: yarn-cache-dir-path
-              run: echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
-              shell: bash
-              if: ${{ needs.initialize.outputs.SKIP_CACHE == 'false' }}
+    #         ##########
+    #         # Caches #
+    #         ##########
+    #         ################
+    #         # Yarn Cache
+    #         - name: Get yarn cache directory path
+    #           id: yarn-cache-dir-path
+    #           run: echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
+    #           shell: bash
+    #           if: ${{ needs.initialize.outputs.SKIP_CACHE == 'false' }}
 
-            - name: Setup yarn cache
-              uses: actions/cache@v3
-              id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
-              with:
-                  path: |
-                      ~/.cache/ms-playwright
-                      ${{ steps.yarn-cache-dir-path.outputs.dir }}
-                  key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-                  restore-keys: |
-                      ${{ runner.os }}-yarn-
-              if: ${{ needs.initialize.outputs.SKIP_CACHE == 'false' }}
+    #         - name: Setup yarn cache
+    #           uses: actions/cache@v3
+    #           id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
+    #           with:
+    #               path: |
+    #                   ~/.cache/ms-playwright
+    #                   ${{ steps.yarn-cache-dir-path.outputs.dir }}
+    #               key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+    #               restore-keys: |
+    #                   ${{ runner.os }}-yarn-
+    #           if: ${{ needs.initialize.outputs.SKIP_CACHE == 'false' }}
 
-            - name: Setup emsdk cache
-              uses: actions/cache@v3
-              id: emsdk-cache
-              with:
-                  path: .emsdk
-                  key: ${{ runner.os }}-emsdk-${{ hashFiles('package.json') }}
-                  restore-keys: |
-                      ${{ runner.os }}-emsdk-
-              if: ${{ needs.initialize.outputs.SKIP_CACHE == 'false' }}
+    #         - name: Setup emsdk cache
+    #           uses: actions/cache@v3
+    #           id: emsdk-cache
+    #           with:
+    #               path: .emsdk
+    #               key: ${{ runner.os }}-emsdk-${{ hashFiles('package.json') }}
+    #               restore-keys: |
+    #                   ${{ runner.os }}-emsdk-
+    #           if: ${{ needs.initialize.outputs.SKIP_CACHE == 'false' }}
 
-            ################
-            # Pip Cache
-            - name: Setup pip cache
-              uses: actions/cache@v3
-              with:
-                  path: ~/.cache/pip
-                  key: ${{ runner.os }}-pip-${{ hashFiles('**/setup.py') }}
-                  restore-keys: |
-                      ${{ runner.os }}-pip-
-              if: ${{ needs.initialize.outputs.SKIP_CACHE == 'false' }}
+    #         ################
+    #         # Pip Cache
+    #         - name: Setup pip cache
+    #           uses: actions/cache@v3
+    #           with:
+    #               path: ~/.cache/pip
+    #               key: ${{ runner.os }}-pip-${{ hashFiles('**/setup.py') }}
+    #               restore-keys: |
+    #                   ${{ runner.os }}-pip-
+    #           if: ${{ needs.initialize.outputs.SKIP_CACHE == 'false' }}
 
-            ################
-            # Cargo Cache
-            - name: Setup cargo cache
-              uses: actions/cache@v3
-              with:
-                  path: |
-                      ~/.cargo/bin/
-                      ~/.cargo/registry/index/
-                      ~/.cargo/registry/cache/
-                      ~/.cargo/git/db/
-                      rust/perspective-viewer/target/
-                  key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-              if: ${{ needs.initialize.outputs.SKIP_CACHE == 'false' }}
+    #         ################
+    #         # Cargo Cache
+    #         - name: Setup cargo cache
+    #           uses: actions/cache@v3
+    #           with:
+    #               path: |
+    #                   ~/.cargo/bin/
+    #                   ~/.cargo/registry/index/
+    #                   ~/.cargo/registry/cache/
+    #                   ~/.cargo/git/db/
+    #                   rust/perspective-viewer/target/
+    #               key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+    #           if: ${{ needs.initialize.outputs.SKIP_CACHE == 'false' }}
 
-            ################
-            # Build Assets
-            - name: ccache
-              uses: hendrikmuhs/ccache-action@v1.2
-              with:
-                  key: ${{ github.job }}-${{ matrix.os }}
-              if: ${{ needs.initialize.outputs.SKIP_CACHE == 'false' }}
+    #         ################
+    #         # Build Assets
+    #         - name: ccache
+    #           uses: hendrikmuhs/ccache-action@v1.2
+    #           with:
+    #               key: ${{ github.job }}-${{ matrix.os }}
+    #           if: ${{ needs.initialize.outputs.SKIP_CACHE == 'false' }}
 
-            ###############################
-            # Language and Compiler Setup #
-            ###############################
-            - name: Set up Python ${{ matrix.python-version }}
-              uses: actions/setup-python@v4
-              with:
-                  python-version: ${{ matrix.python-version }}
-                  cache: "pip"
+    #         ###############################
+    #         # Language and Compiler Setup #
+    #         ###############################
+    #         - name: Set up Python ${{ matrix.python-version }}
+    #           uses: actions/setup-python@v4
+    #           with:
+    #               python-version: ${{ matrix.python-version }}
+    #               cache: "pip"
 
-            - name: Use Node.js ${{ matrix.node-version }}
-              uses: actions/setup-node@v3
-              with:
-                  node-version: ${{ matrix.node-version }}
-                  cache: "yarn"
-                  cache-dependency-path: yarn.lock
+    #         - name: Use Node.js ${{ matrix.node-version }}
+    #           uses: actions/setup-node@v3
+    #           with:
+    #               node-version: ${{ matrix.node-version }}
+    #               cache: "yarn"
+    #               cache-dependency-path: yarn.lock
 
-            - name: Install latest nightly rust
-              uses: dtolnay/rust-toolchain@nightly
-              with:
-                  toolchain: nightly-2023-10-12
-                  targets: wasm32-unknown-unknown
-                  components: rustfmt, clippy, rust-src
+    #         - name: Install latest nightly rust
+    #           uses: dtolnay/rust-toolchain@nightly
+    #           with:
+    #               toolchain: nightly-2023-10-12
+    #               targets: wasm32-unknown-unknown
+    #               components: rustfmt, clippy, rust-src
 
-            ################
-            # Dependencies #
-            ################
-            ################
-            - name: Install LLVM 17
-              uses: KyleMayes/install-llvm-action@v1
-              with:
-                  version: "17"
-                  directory: "./.llvm"
+    #         ################
+    #         # Dependencies #
+    #         ################
+    #         ################
+    #         - name: Install LLVM 17
+    #           uses: KyleMayes/install-llvm-action@v1
+    #           with:
+    #               version: "17"
+    #               directory: "./.llvm"
 
-            # JS
-            - name: Install yarn
-              run: npm install -g yarn
+    #         # JS
+    #         - name: Install yarn
+    #           run: npm install -g yarn
 
-            - name: Install js dependencies
-              run: yarn
+    #         - name: Install js dependencies
+    #           run: yarn
 
-            ################
-            # Python
-            - name: Install python dependencies
-              run: yarn _requires_python
+    #         ################
+    #         # Python
+    #         - name: Install python dependencies
+    #           run: yarn _requires_python
 
-            ################
-            # Linux
-            - name: Linux init steps
-              run: sudo node tools/perspective-scripts/install_tools.mjs
-              if: ${{ runner.os == 'Linux' }}
+    #         ################
+    #         # Linux
+    #         - name: Linux init steps
+    #           run: sudo node tools/perspective-scripts/install_tools.mjs
+    #           if: ${{ runner.os == 'Linux' }}
 
-            - name: Install CCache
-              run: sudo apt install -y ccache
+    #         - name: Install CCache
+    #           run: sudo apt install -y ccache
 
-            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-            #~~~~~~~~~ Build Pipelines ~~~~~~~~~#
-            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-            ###############
-            # WebAssembly #
-            ###############
+    #         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+    #         #~~~~~~~~~ Build Pipelines ~~~~~~~~~#
+    #         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+    #         ###############
+    #         # WebAssembly #
+    #         ###############
 
-            - name: WebAssembly Build
-              run: yarn build_js --ci
-              env:
-                  PSP_USE_CCACHE: 1
+    #         - name: WebAssembly Build
+    #           run: yarn build_js --ci
+    #           env:
+    #               PSP_USE_CCACHE: 1
 
-            # - name: Docs Build
-            #   run: yarn docs
+    #         # - name: Docs Build
+    #         #   run: yarn docs
 
-            - name: Lint
-              run: yarn lint
-              env:
-                  PSP_PROJECT: "js"
+    #         - name: Lint
+    #           run: yarn lint
+    #           env:
+    #               PSP_PROJECT: "js"
 
-            #################################
-            # Compress and upload Artifacts #
-            #################################
-            ######################################
-            # Upload built JS artifacts for tests
-            #
-            # (listed here in the same order they appear in the directory)
-            - uses: actions/upload-artifact@v3
-              with:
-                  name: perspective-dist
-                  path: packages/perspective/dist/
+    #         #################################
+    #         # Compress and upload Artifacts #
+    #         #################################
+    #         ######################################
+    #         # Upload built JS artifacts for tests
+    #         #
+    #         # (listed here in the same order they appear in the directory)
+    #         - uses: actions/upload-artifact@v3
+    #           with:
+    #               name: perspective-dist
+    #               path: packages/perspective/dist/
 
-            - uses: actions/upload-artifact@v3
-              with:
-                  name: perspective-jupyterlab-dist
-                  path: packages/perspective-jupyterlab/dist/
+    #         - uses: actions/upload-artifact@v3
+    #           with:
+    #               name: perspective-jupyterlab-dist
+    #               path: packages/perspective-jupyterlab/dist/
 
-            - uses: actions/upload-artifact@v3
-              with:
-                  name: perspective-viewer-d3fc-dist
-                  path: packages/perspective-viewer-d3fc/dist
+    #         - uses: actions/upload-artifact@v3
+    #           with:
+    #               name: perspective-viewer-d3fc-dist
+    #               path: packages/perspective-viewer-d3fc/dist
 
-            - uses: actions/upload-artifact@v3
-              with:
-                  name: perspective-viewer-datagrid-dist
-                  path: packages/perspective-viewer-datagrid/dist
+    #         - uses: actions/upload-artifact@v3
+    #           with:
+    #               name: perspective-viewer-datagrid-dist
+    #               path: packages/perspective-viewer-datagrid/dist
 
-            - uses: actions/upload-artifact@v3
-              with:
-                  name: perspective-viewer-openlayers-dist
-                  path: packages/perspective-viewer-openlayers/dist
+    #         - uses: actions/upload-artifact@v3
+    #           with:
+    #               name: perspective-viewer-openlayers-dist
+    #               path: packages/perspective-viewer-openlayers/dist
 
-            - uses: actions/upload-artifact@v3
-              with:
-                  name: perspective-esbuild-plugin-dist
-                  path: packages/perspective-esbuild-plugin/dist
+    #         - uses: actions/upload-artifact@v3
+    #           with:
+    #               name: perspective-esbuild-plugin-dist
+    #               path: packages/perspective-esbuild-plugin/dist
 
-            - uses: actions/upload-artifact@v3
-              with:
-                  name: perspective-webpack-plugin-dist
-                  path: packages/perspective-webpack-plugin/dist
+    #         - uses: actions/upload-artifact@v3
+    #           with:
+    #               name: perspective-webpack-plugin-dist
+    #               path: packages/perspective-webpack-plugin/dist
 
-            - uses: actions/upload-artifact@v3
-              with:
-                  name: perspective-cli-dist
-                  path: packages/perspective-cli/dist
+    #         - uses: actions/upload-artifact@v3
+    #           with:
+    #               name: perspective-cli-dist
+    #               path: packages/perspective-cli/dist
 
-            - uses: actions/upload-artifact@v3
-              with:
-                  name: perspective-workspace-dist
-                  path: packages/perspective-workspace/dist
+    #         - uses: actions/upload-artifact@v3
+    #           with:
+    #               name: perspective-workspace-dist
+    #               path: packages/perspective-workspace/dist
 
-            - uses: actions/upload-artifact@v3
-              with:
-                  name: perspective-viewer-dist
-                  path: rust/perspective-viewer/dist
+    #         - uses: actions/upload-artifact@v3
+    #           with:
+    #               name: perspective-viewer-dist
+    #               path: rust/perspective-viewer/dist
 
-            ######################################################
-            # Upload Jupyter artifacts for python build/test/dist
-            - uses: actions/upload-artifact@v3
-              with:
-                  name: nbextension-dist
-                  path: python/perspective/perspective/nbextension
-                  if-no-files-found: error # TODO
+    #         ######################################################
+    #         # Upload Jupyter artifacts for python build/test/dist
+    #         - uses: actions/upload-artifact@v3
+    #           with:
+    #               name: nbextension-dist
+    #               path: python/perspective/perspective/nbextension
+    #               if-no-files-found: error # TODO
 
-            - uses: actions/upload-artifact@v3
-              with:
-                  name: labextension-dist
-                  path: python/perspective/perspective/labextension
-                  if-no-files-found: error # TODO
+    #         - uses: actions/upload-artifact@v3
+    #           with:
+    #               name: labextension-dist
+    #               path: python/perspective/perspective/labextension
+    #               if-no-files-found: error # TODO
 
     ##########################################################################################################################
     ##########################################################################################################################
@@ -440,121 +440,121 @@ jobs:
     #~~~~~~~~~~~~~~~~~~~~~~~~~#
     # Stage Two - Lint Python #
     #~~~~~~~~~~~~~~~~~~~~~~~~~#
-    lint_python:
-        needs: [initialize]
+    # lint_python:
+    #     needs: [initialize]
 
-        strategy:
-            matrix:
-                os:
-                    - ubuntu-22.04 # https://github.com/actions/virtual-environments/blob/main/images/linux/Ubuntu2004-Readme.md
-                python-version:
-                    - 3.9
+    #     strategy:
+    #         matrix:
+    #             os:
+    #                 - ubuntu-22.04 # https://github.com/actions/virtual-environments/blob/main/images/linux/Ubuntu2004-Readme.md
+    #             python-version:
+    #                 - 3.9
 
-            # NOTE: don't fail fast as sometimes npm blocks the burst of fetches from GHA
-            fail-fast: false
-        ##################################
-        # Setup matrix job configuration #
-        ##################################
-        runs-on: ${{ matrix.os }}
-        if: ${{ needs.initialize.outputs.SKIP_CI == 'false' && needs.initialize.outputs.SKIP_PYTHON == 'false' }}
+    #         # NOTE: don't fail fast as sometimes npm blocks the burst of fetches from GHA
+    #         fail-fast: false
+    #     ##################################
+    #     # Setup matrix job configuration #
+    #     ##################################
+    #     runs-on: ${{ matrix.os }}
+    #     if: ${{ needs.initialize.outputs.SKIP_CI == 'false' && needs.initialize.outputs.SKIP_PYTHON == 'false' }}
 
-        steps:
-            - name: Checkout
-              uses: actions/checkout@v3
+    #     steps:
+    #         - name: Checkout
+    #           uses: actions/checkout@v3
 
-            - name: Install LLVM 17
-              uses: KyleMayes/install-llvm-action@v1
-              with:
-                  version: "17"
-                  directory: "./.llvm"
+    #         - name: Install LLVM 17
+    #           uses: KyleMayes/install-llvm-action@v1
+    #           with:
+    #               version: "17"
+    #               directory: "./.llvm"
 
-            ##########
-            # Caches #
-            ##########
-            ################
-            # Yarn Cache
-            - name: Get yarn cache directory path
-              id: yarn-cache-dir-path
-              run: echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
-              shell: bash
-              if: ${{ needs.initialize.outputs.SKIP_CACHE == 'false' }}
+    #         ##########
+    #         # Caches #
+    #         ##########
+    #         ################
+    #         # Yarn Cache
+    #         - name: Get yarn cache directory path
+    #           id: yarn-cache-dir-path
+    #           run: echo "dir=$(yarn cache dir)" >> $GITHUB_OUTPUT
+    #           shell: bash
+    #           if: ${{ needs.initialize.outputs.SKIP_CACHE == 'false' }}
 
-            - name: Setup yarn cache
-              uses: actions/cache@v3
-              id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
-              with:
-                  path: |
-                      ~/.cache/ms-playwright
-                      ${{ steps.yarn-cache-dir-path.outputs.dir }}
-                  key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
-                  restore-keys: |
-                      ${{ runner.os }}-yarn-
-              if: ${{ needs.initialize.outputs.SKIP_CACHE == 'false' }}
+    #         - name: Setup yarn cache
+    #           uses: actions/cache@v3
+    #           id: yarn-cache # use this to check for `cache-hit` (`steps.yarn-cache.outputs.cache-hit != 'true'`)
+    #           with:
+    #               path: |
+    #                   ~/.cache/ms-playwright
+    #                   ${{ steps.yarn-cache-dir-path.outputs.dir }}
+    #               key: ${{ runner.os }}-yarn-${{ hashFiles('**/yarn.lock') }}
+    #               restore-keys: |
+    #                   ${{ runner.os }}-yarn-
+    #           if: ${{ needs.initialize.outputs.SKIP_CACHE == 'false' }}
 
-            ################
-            # Pip Cache
-            - name: Setup pip cache
-              uses: actions/cache@v3
-              with:
-                  path: ~/.cache/pip
-                  key: ${{ runner.os }}-pip-${{ hashFiles('**/setup.py') }}
-                  restore-keys: |
-                      ${{ runner.os }}-pip-
-              if: ${{ needs.initialize.outputs.SKIP_CACHE == 'false' }}
+    #         ################
+    #         # Pip Cache
+    #         - name: Setup pip cache
+    #           uses: actions/cache@v3
+    #           with:
+    #               path: ~/.cache/pip
+    #               key: ${{ runner.os }}-pip-${{ hashFiles('**/setup.py') }}
+    #               restore-keys: |
+    #                   ${{ runner.os }}-pip-
+    #           if: ${{ needs.initialize.outputs.SKIP_CACHE == 'false' }}
 
-            ###############################
-            # Language and Compiler Setup #
-            ###############################
-            - name: Set up Python ${{ matrix.python-version }}
-              uses: actions/setup-python@v4
-              with:
-                  python-version: ${{ matrix.python-version }}
-                  cache: "pip"
+    #         ###############################
+    #         # Language and Compiler Setup #
+    #         ###############################
+    #         - name: Set up Python ${{ matrix.python-version }}
+    #           uses: actions/setup-python@v4
+    #           with:
+    #               python-version: ${{ matrix.python-version }}
+    #               cache: "pip"
 
-            - name: Use Node.js ${{ matrix.node-version }}
-              uses: actions/setup-node@v3
-              with:
-                  node-version: ${{ matrix.node-version }}
-                  cache: "yarn"
-                  cache-dependency-path: yarn.lock
+    #         - name: Use Node.js ${{ matrix.node-version }}
+    #           uses: actions/setup-node@v3
+    #           with:
+    #               node-version: ${{ matrix.node-version }}
+    #               cache: "yarn"
+    #               cache-dependency-path: yarn.lock
 
-            ################
-            # Dependencies #
-            ################
-            ################
-            # JS
-            - name: Install yarn
-              run: npm install -g yarn
+    #         ################
+    #         # Dependencies #
+    #         ################
+    #         ################
+    #         # JS
+    #         - name: Install yarn
+    #           run: npm install -g yarn
 
-            - name: Install js dependencies
-              run: yarn
-              env:
-                  PSP_SKIP_EMSDK_INSTALL: 1
+    #         - name: Install js dependencies
+    #           run: yarn
+    #           env:
+    #               PSP_SKIP_EMSDK_INSTALL: 1
 
-            ################
-            # Python
-            - name: Install python dependencies
-              run: yarn _requires_python
+    #         ################
+    #         # Python
+    #         - name: Install python dependencies
+    #           run: yarn _requires_python
 
-            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-            #~~~~~~~~~ Build Pipelines ~~~~~~~~~#
-            #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
-            #################
-            # Python - Lint #
-            #################
-            ########
-            # Linux
-            - name: Python Lint (Linux)
-              run: yarn lint
-              env:
-                  PYTHON_VERSION: ${{ matrix.python-version }}
-                  PSP_PROJECT: python
+    #         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+    #         #~~~~~~~~~ Build Pipelines ~~~~~~~~~#
+    #         #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
+    #         #################
+    #         # Python - Lint #
+    #         #################
+    #         ########
+    #         # Linux
+    #         - name: Python Lint (Linux)
+    #           run: yarn lint
+    #           env:
+    #               PYTHON_VERSION: ${{ matrix.python-version }}
+    #               PSP_PROJECT: python
 
-            - name: JavaScript Lint
-              run: yarn lint
-              env:
-                  PYTHON_VERSION: ${{ matrix.python-version }}
-                  PSP_PROJECT: js
+    #         - name: JavaScript Lint
+    #           run: yarn lint
+    #           env:
+    #               PYTHON_VERSION: ${{ matrix.python-version }}
+    #               PSP_PROJECT: js
 
     ##########################################################################################################################
     ##########################################################################################################################
@@ -572,7 +572,7 @@ jobs:
     # Stage Three - Test the JS #
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~#
     test_js:
-        needs: [initialize, build_js]
+        needs: [initialize]
 
         strategy:
             matrix:
@@ -752,7 +752,6 @@ jobs:
     # Stage Three And a Half    #  # . #  # Benchmarking               #
     #~~~~~~~~~~~~~~~~~~~~~~~~~~~#  #####  #~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
     benchmark_js:
-        needs: [build_js]
         if: startsWith(github.ref, 'refs/tags/v')
         strategy:
             matrix:
@@ -872,7 +871,7 @@ jobs:
         ###################################################################
         # Run JS build first, then use the artifacts in the python builds #
         ###################################################################
-        needs: [initialize, build_js]
+        needs: [initialize]
 
         strategy:
             # NOTE: this matrix should build wheels across all supported envs.
@@ -1179,58 +1178,58 @@ jobs:
                   path: python/perspective/dist/*.tar.gz
               if: ${{ matrix.os == 'macos-11' }}
 
-    build_pyodide:
-        strategy:
-            matrix:
-                os: [ubuntu-20.04]
-        runs-on: ${{ matrix.os }}
-        needs: [initialize]
-        env:
-            PYODIDE_VERSION: 0.25.0
-            # PYTHON_VERSION and EMSCRIPTEN_VERSION are determined by PYODIDE_VERSION.
-            # The appropriate versions can be found in the Pyodide repodata.json
-            # "info" field, or in Makefile.envs:
-            # https://github.com/pyodide/pyodide/blob/0.25.0/Makefile.envs#L2
-            PYTHON_VERSION: 3.11.3
-            EMSCRIPTEN_VERSION: 3.1.46
-        steps:
-            - name: Checkout perspective
-              uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
+    # build_pyodide:
+    #     strategy:
+    #         matrix:
+    #             os: [ubuntu-20.04]
+    #     runs-on: ${{ matrix.os }}
+    #     needs: [initialize]
+    #     env:
+    #         PYODIDE_VERSION: 0.25.0
+    #         # PYTHON_VERSION and EMSCRIPTEN_VERSION are determined by PYODIDE_VERSION.
+    #         # The appropriate versions can be found in the Pyodide repodata.json
+    #         # "info" field, or in Makefile.envs:
+    #         # https://github.com/pyodide/pyodide/blob/0.25.0/Makefile.envs#L2
+    #         PYTHON_VERSION: 3.11.3
+    #         EMSCRIPTEN_VERSION: 3.1.46
+    #     steps:
+    #         - name: Checkout perspective
+    #           uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab # v3.5.2
 
-            - name: set up python
-              id: setup-python
-              uses: actions/setup-python@57ded4d7d5e986d7296eab16560982c6dd7c923b # v4.6.0
-              with:
-                  python-version: ${{ env.PYTHON_VERSION }}
+    #         - name: set up python
+    #           id: setup-python
+    #           uses: actions/setup-python@57ded4d7d5e986d7296eab16560982c6dd7c923b # v4.6.0
+    #           with:
+    #               python-version: ${{ env.PYTHON_VERSION }}
 
-            - uses: mymindstorm/setup-emsdk@ab889da2abbcbb280f91ec4c215d3bb4f3a8f775 # v12
-              with:
-                  version: ${{ env.EMSCRIPTEN_VERSION }}
-                  actions-cache-folder: emsdk-cache
+    #         - uses: mymindstorm/setup-emsdk@ab889da2abbcbb280f91ec4c215d3bb4f3a8f775 # v12
+    #           with:
+    #               version: ${{ env.EMSCRIPTEN_VERSION }}
+    #               actions-cache-folder: emsdk-cache
 
-            - name: copy files
-              run: |
-                  npm install -g yarn
-                  yarn --frozen-lockfile
-                  yarn build_python --setup-only
+    #         - name: copy files
+    #           run: |
+    #               npm install -g yarn
+    #               yarn --frozen-lockfile
+    #               yarn build_python --setup-only
 
-            - name: Linux init steps
-              run: sudo node tools/perspective-scripts/install_tools.mjs
+    #         - name: Linux init steps
+    #           run: sudo node tools/perspective-scripts/install_tools.mjs
 
-            - name: Install pyodide-build
-              run: pip install pyodide-build==$PYODIDE_VERSION "pydantic<2"
+    #         - name: Install pyodide-build
+    #           run: pip install pyodide-build==$PYODIDE_VERSION "pydantic<2"
 
-            - name: Build
-              # Without --exports=pyinit, pyodide-build tries to export all symbols from every .o,
-              # which causes the em++ linker command line invocation to be so long
-              # that the command fails.
-              run: pyodide build python/perspective --exports=pyinit
+    #         - name: Build
+    #           # Without --exports=pyinit, pyodide-build tries to export all symbols from every .o,
+    #           # which causes the em++ linker command line invocation to be so long
+    #           # that the command fails.
+    #           run: pyodide build python/perspective --exports=pyinit
 
-            - name: Upload pyodide wheel
-              uses: actions/upload-artifact@v3
-              with:
-                  name: perspective-python-dist-pyodide
-                  path: dist/*.whl
+    #         - name: Upload pyodide wheel
+    #           uses: actions/upload-artifact@v3
+    #           with:
+    #               name: perspective-python-dist-pyodide
+    #               path: dist/*.whl
 
     ##########################################################################################################################
     ##########################################################################################################################
@@ -1251,7 +1250,7 @@ jobs:
         ###################################################################
         # Run JS build first, then use the artifacts in the python builds #
         ###################################################################
-        needs: [initialize, build_js, build_python]
+        needs: [initialize, build_python]
 
         strategy:
             matrix:
@@ -1861,7 +1860,6 @@ jobs:
                 test_js_and_python,
                 test_python,
                 test_python_sdist,
-                build_pyodide,
                 test_js,
                 benchmark_js,
                 benchmark_python,
